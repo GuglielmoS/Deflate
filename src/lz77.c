@@ -8,14 +8,38 @@
  * Constructors of LZ_Element.
  * Allocates and returns a new LZ_Element.
  */
-LZ_Element *LZ_new_element()
+LZ_Element* LZ_new_element()
 {
     LZ_Element *element = (LZ_Element*)malloc(sizeof(LZ_Element));
     
     if (element == NULL) {
-        fprintf(stderr, "[ERROR] malloc on LZ_Element failed!\n");
+        fprintf(stderr, "[ERROR-LZ_new_element] malloc on LZ_Element failed!\n");
         exit(EXIT_FAILURE);
     }
+
+    return element;
+}
+
+/**
+ * Allocates and returns a new pair LZ_Element which
+ * has as value 'pair'.
+ */
+LZ_Element* LZ_new_pair(LZ_Pair pair) 
+{
+    LZ_Element *element = LZ_new_element();
+    LZ_set_pair(element, pair);
+
+    return element;
+}
+
+/**
+ * Allocates and returns a new literal LZ_Element which
+ * has as value 'literal'.
+ */
+LZ_Element* LZ_new_literal(LZ_Literal literal)
+{
+    LZ_Element *element = LZ_new_element();
+    LZ_set_literal(element, literal);
 
     return element;
 }
@@ -128,9 +152,12 @@ void LZ_set_length(LZ_Element *element, LZ_Length length)
  */
 void LZ_copy_element(const LZ_Element *src, LZ_Element *dest)
 {
-    dest->value.l = src->value.l;
-    dest->value.p = src->value.p;
-    dest->type    = src->type;
+    if (LZ_is_literal(src)) {
+        LZ_set_literal(dest, LZ_get_literal(src));
+    }
+    else {
+        LZ_set_pair(dest, LZ_get_pair(src));
+    }
 }
 
 /**
@@ -157,12 +184,13 @@ LZ_Stream* LZ_new_stream()
     LZ_Stream *stream = (LZ_Stream*)malloc(sizeof(LZ_Stream));
 
     if (stream == NULL) {
-        fprintf(stderr, "[ERROR] malloc on LZ_stream failed!\n");
+        fprintf(stderr, "[ERROR-LZ_new_stream] malloc on LZ_stream failed!\n");
         exit(EXIT_FAILURE);
     }
     else {
-        stream->values = NULL;
-        stream->size = 0;
+        stream->values = (LZ_Element*)malloc(sizeof(LZ_Element)*DEFAULT_STREAM_SIZE);
+        stream->used = 0;
+        stream->size = DEFAULT_STREAM_SIZE;
     }
 
     return stream;
@@ -175,30 +203,40 @@ LZ_Stream* LZ_new_stream()
 void LZ_stream_append(LZ_Stream *stream, const LZ_Element *element)
 {
     size_t stream_size = LZ_stream_size(stream);
+    size_t stream_max_size = LZ_stream_max_size(stream);
 
     // resize the arrays of values
-    if (stream_size == 0) {
-        stream->values = (LZ_Element*)malloc(sizeof(LZ_Element));
-    }
-    else {
-        stream->values = (LZ_Element*)realloc(stream->values, stream->size + 1);
+    if (stream_size == stream_max_size) {
+        LZ_Element* new_memory = (LZ_Element*)malloc(sizeof(LZ_Element)*(stream_size*2));
+
+        if (new_memory == NULL) {
+            fprintf(stderr, "[ERROR-LZ_stream_append] LZ_stream_append failed"
+                            "during memory allocation!"); 
+            exit(EXIT_FAILURE);
+        }        
+
+        // copy old element in the new memory section
+        memcpy(new_memory, stream->values, sizeof(LZ_Element)*stream_size);
+
+        // free old memory
+        free(stream->values);
+         
+        // sets the new pointer to values
+        stream->values = new_memory;
+        // fix the max size 
+        stream->size  *= 2; 
     }
 
-    if (stream == NULL) {
-        fprintf(stderr, "[ERROR] LZ_stream_append failed during memory allocation!"); 
-        exit(EXIT_FAILURE);
-    }
-    else {
-        LZ_copy_element(element, &stream->values[stream_size]);
-        LZ_stream_inc_size(stream);
-    }
+    // add the new element
+    LZ_copy_element(element, &stream->values[stream_size]);
+    LZ_stream_inc_size(stream);
 }
 
 
 /**
  * Returns a pointer to LZ_Element stored in the stream at position 'pos'. 
  */
-LZ_Element* LZ_stream_get(LZ_Stream *stream, size_t pos)
+LZ_Element* LZ_stream_get(const LZ_Stream *stream, size_t pos)
 {
     return &(stream->values[pos]);
 }
@@ -207,17 +245,9 @@ LZ_Element* LZ_stream_get(LZ_Stream *stream, size_t pos)
  * Sets the LZ_Element element at the position 'pos' in 'stream' to
  * the values of 'element'.
  */
-void LZ_stream_set(LZ_Stream *stream, LZ_Element *element, size_t pos)
+void LZ_stream_set(LZ_Stream *stream, const LZ_Element *element, size_t pos)
 {
     LZ_copy_element(element, LZ_stream_get(stream, pos));
-}
-
-/**
- * Returns the size of 'stream'.
- */
-size_t LZ_stream_size(LZ_Stream *stream)
-{
-    return stream->size;
 }
 
 /**
@@ -225,14 +255,29 @@ size_t LZ_stream_size(LZ_Stream *stream)
  */
 void LZ_stream_inc_size(LZ_Stream *stream)
 {
-    stream->size++;
+    stream->used++;
+}
+
+/**
+ * Returns the size of 'stream'.
+ */
+size_t LZ_stream_size(const LZ_Stream *stream)
+{
+    return stream->used;
+}
+
+/**
+ * Returns the max size of 'stream'.
+ */
+size_t LZ_stream_max_size(const LZ_Stream *stream) {
+    return stream->size;
 }
 
 /**
  * Prints to the FILE descriptor passed as argoument
- * a nice representation of the LZ_stream 'stream'.
+ * a representation of the LZ_stream 'stream'.
  */
-void LZ_stream_pretty_print(LZ_Stream *stream, FILE *fd)
+void LZ_stream_print(LZ_Stream *stream, FILE *fd)
 {
     for (size_t i = 0; i < LZ_stream_size(stream); i++) {
         LZ_Element *cur_element = LZ_stream_get(stream, i);
@@ -276,10 +321,8 @@ LZ_Stream* LZ_encode(const char *buffer)
                 }
                 
                 if (length > 0) {
-                    LZ_Element *element = LZ_new_element();
-                    LZ_set_pair(element, (LZ_Pair){buf_end-j, length});
-                    LZ_stream_append(out_stream, element);
-
+                    LZ_stream_append(out_stream,
+                                     LZ_new_pair((LZ_Pair){buf_end-j, length}));
                     i += length;
                     break;
                 }
@@ -287,10 +330,8 @@ LZ_Stream* LZ_encode(const char *buffer)
         }
         
         if (length == 0) {
-            LZ_Element *element = LZ_new_element();
-            LZ_set_literal(element, (LZ_Literal)buffer[i]);
-            LZ_stream_append(out_stream, element);
-
+            LZ_stream_append(out_stream,
+                             LZ_new_literal((LZ_Literal)buffer[i]));
             i++;
         }
 
@@ -301,12 +342,35 @@ LZ_Stream* LZ_encode(const char *buffer)
 }
 
 /**
- * TODO: non yet implemented
- * Returns an array of characters by decoding the 
- * LZ_Stream of LZ_Element.
+ * Returns a stream of LZ_Element (in particular LZ_LITERAL) by decoding the 
+ * LZ_Stream 'stream'.
  */
-char* LZ_decode(LZ_Stream *stream)
+LZ_Stream* LZ_decode(const LZ_Stream *in_stream)
 {
-    return NULL;
+    LZ_Stream *out_stream = LZ_new_stream();
+
+    size_t stream_size = LZ_stream_size(in_stream);
+    for (size_t i = 0; i < stream_size; i++) {
+        LZ_Element *cur_elem = LZ_stream_get(in_stream, i);
+
+        // if it's a literal
+        if (LZ_is_literal(cur_elem)) {
+            LZ_stream_append(out_stream, cur_elem);
+        }
+        else {
+            // steps back in the buffer of 'distance' position 
+            // and gets the following 'length' literal.
+            size_t distance  = LZ_get_distance(cur_elem),
+                   length    = LZ_get_length(cur_elem),
+                   start_pos = i - distance,
+                   end_pos   = start_pos + length;
+
+            for (size_t j = start_pos; j < end_pos; j++) {
+                LZ_stream_append(out_stream, LZ_stream_get(out_stream, j));
+            }
+        }
+    }
+
+    return out_stream;
 }
 

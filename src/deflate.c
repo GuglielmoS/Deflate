@@ -12,9 +12,17 @@ int main(int argc, char *argv[])
     size_t n_msg = 2;
 
     for (size_t i = 0; i < n_msg; i++) {
-        printf("INPUT: %s\n", message[i]);
-        printf("OUTPUT: ");
-        LZ_stream_pretty_print(LZ_encode(message[i]), stdout);
+        LZ_Stream *encoded_stream = LZ_encode(message[i]);
+        LZ_Stream *decoded_stream = LZ_decode(encoded_stream);
+
+        printf("MESSAGE: %s\n", message[i]);
+
+        printf("ENCODED: ");
+        LZ_stream_print(encoded_stream, stdout);
+
+        printf("DECODED: ");
+        LZ_stream_print(decoded_stream, stdout);
+
         putchar('\n');
     }
 
