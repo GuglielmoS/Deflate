@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "deflate.h"
 #include "lz77.h"
 
 int main(int argc, char *argv[])
