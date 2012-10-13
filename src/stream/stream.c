@@ -4,6 +4,33 @@
 
 #include "stream.h"
 
+/**
+ * Helper methods (private)
+ */
+
+void Stream_grow_store(Stream *s)
+{
+    size_t new_size = s->size * 2;
+    Element *new_memory = (Element*)malloc(sizeof(Element)*new_size);
+
+    if (new_memory == NULL) {
+        fprintf(stderr, "[ERROR-Stream_new] malloc failed!");
+        exit(EXIT_FAILURE);
+    }
+
+    // copy old values in the new memory area
+    memcpy(new_memory, s->values, sizeof(Element)*new_size);
+    
+    // free old memory
+    free(s->values);
+    
+    // set the pointer at the values to the new memory area
+    s->values = new_memory;
+    s->size   = new_size;
+}
+
+/*** Public methods ***/
+
 Stream* Stream_new()
 {
     Stream *stream = (Stream*)malloc(sizeof(Stream));
@@ -59,28 +86,4 @@ void Stream_destroy(Stream *s)
     free(s);
 }
 
-/**
- * Helper methods
- */
-
-void Stream_grow_store(Stream *s)
-{
-    size_t new_size = s->size * 2;
-    Element *new_memory = (Element*)malloc(sizeof(Element)*new_size);
-
-    if (new_memory == NULL) {
-        fprintf(stderr, "[ERROR-Stream_new] malloc failed!");
-        exit(EXIT_FAILURE);
-    }
-
-    // copy old values in the new memory area
-    memcpy(new_memory, s->values, sizeof(Element)*new_size);
-    
-    // free old memory
-    free(s->values);
-    
-    // set the pointer at the values to the new memory area
-    s->values = new_memory;
-    s->size   = new_size;
-}
 

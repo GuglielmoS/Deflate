@@ -23,7 +23,4 @@ size_t   Stream_get_size(const Stream *s);
 bool     Stream_is_full(const Stream *s);
 void     Stream_destroy(Stream *s);
 
-// helper methods
-void Stream_grow_store(Stream *s);
-
 #endif /* __STREAM__ */
