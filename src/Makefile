@@ -10,6 +10,9 @@ clean:
 stream.o: stream/stream.c
 	$(CC) -c $^
 
+util.o: util.c
+	$(CC) -c $^
+
 # LZ
 
 lz_test: lz_test.o lz.o lz_stream.o lz_element.o stream.o
@@ -29,7 +32,7 @@ lz_test.o: lz/lz_test.c lz.o
 
 # HUFFMAN
 
-huffman_test: huffman.o huffman_test.o
+huffman_test: huffman.o huffman_test.o util.o
 	$(CC) -o tests/huffman_test $^
 
 huffman_test.o: huffman/huffman_test.c huffman.o
