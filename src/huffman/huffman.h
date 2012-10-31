@@ -1,12 +1,14 @@
 #ifndef __HUFFMAN__
 #define __HUFFMAN__
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 // max number of symbols
 // it's 255 because we encode one byte at time
 // so 2^8 => 255 possible symbols
-#define N_SYMBOLS 255 
+#define N_SYMBOLS 255
 
 typedef uint8_t  HF_Symbol;    // type used for symbols
 typedef uint32_t HF_Frequency; // type used for frequencies
@@ -27,9 +29,9 @@ typedef HF_Node* HF_Tree;
  * Represents a huffman code associated to a symbol. 
  */
 typedef struct {
-    HF_Symbol sym;      // symbol associated to the code
-    uint32_t  value;    // code packed in 4 bytes
-    size_t    length;   // length of the code in bits
+    HF_Symbol sym;     // symbol associated to the code
+    uint8_t  value;    // code packed in a byte
+    uint8_t  length;   // length of the code in bits (max 255 symbols)
 } HF_Code;
 
 // huffman codes table

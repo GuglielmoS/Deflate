@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "huffman.h"
 
 HF_Tree HF_Tree_new()
@@ -84,7 +81,7 @@ HF_Tree HF_Tree_build(const HF_Frequency* freqs)
         new_tree->sym   = 0x00;
         new_tree->freq  = syms[cur-1]->freq + syms[cur]->freq;
         new_tree->left  = syms[cur];
-        new_tree->right = syms[cur-1]; 
+        new_tree->right = syms[cur-1];
 
         syms[cur-1] = new_tree;
         tot_node--;
@@ -95,8 +92,6 @@ HF_Tree HF_Tree_build(const HF_Frequency* freqs)
 
 void HF_table_helper(HF_Tree t, size_t n, HF_Codes_Table table, size_t *cur_pos)
 {
-    static uint8_t tmp[N_SYMBOLS*2] = {0};
-
     if (t != NULL) {
         if (!(t->left) && !(t->right)) {
             table[*cur_pos].sym    = t->sym;
@@ -106,27 +101,17 @@ void HF_table_helper(HF_Tree t, size_t n, HF_Codes_Table table, size_t *cur_pos)
         }
         else {
             if (t->left) {
-                tmp[n] = 0;
                 HF_table_helper(t->left, n+1, table, cur_pos);
             }
 
             if (t->right) {
-                tmp[n] = 1;
                 HF_table_helper(t->right, n+1, table, cur_pos);
             }
         }
     }
 }
 
-HF_Codes_Table HF_build_huffman_table(HF_Tree t, size_t *table_size)
-{
-    HF_Codes_Table table = HF_Codes_Table_new();
-
-    HF_table_helper(t, 0, table, table_size);
-    
-    return table;
-}
-
+// for qsort
 int HF_Code_compare(const void* a, const void* b)
 {
     size_t l1 = ((const HF_Code*)a)->length,
@@ -143,9 +128,11 @@ int HF_Code_compare(const void* a, const void* b)
     }
 }
 
-HF_Codes_Table HF_build_canonical_table(HF_Tree t, size_t *table_size)
+HF_Codes_Table HF_build_canonical_table(HF_Tree tree, size_t *table_size)
 {
-    HF_Codes_Table table = HF_build_huffman_table(t, table_size);
+    // build the table with symbols and their length
+    HF_Codes_Table table = HF_Codes_Table_new();
+    HF_table_helper(tree, 0, table, table_size);
 
     // order by length
     qsort(table, *table_size, sizeof(HF_Code), HF_Code_compare);
@@ -162,3 +149,4 @@ HF_Codes_Table HF_build_canonical_table(HF_Tree t, size_t *table_size)
 
     return table;
 }
+

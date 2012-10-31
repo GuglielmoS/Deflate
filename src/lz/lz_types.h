@@ -11,13 +11,13 @@ typedef enum {_LZ_LITERAL, // literal value
         LZ_Type;
 
 // literal symbols
-typedef int8_t LZ_Literal;
+typedef uint8_t LZ_Literal;
 
 // distance values
-typedef int16_t LZ_Distance;
+typedef uint16_t LZ_Distance;
 
 // length values
-typedef int16_t LZ_Length;
+typedef uint16_t LZ_Length;
 
 // pair of distance and length
 typedef struct {

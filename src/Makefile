@@ -1,6 +1,6 @@
 CC=gcc -Wall -std=c99
 
-tests: lz_test huffman_test  
+tests: lz_test huffman_test history_buffer_test list_test hash_table_test
 
 clean:
 	rm -rf *.o tests/*
@@ -11,6 +11,40 @@ stream.o: stream/stream.c
 	$(CC) -c $^
 
 util.o: util.c
+	$(CC) -c $^
+
+# HISTORY BUFFER 
+
+history_buffer_test: history_buffer_test.o history_buffer.o
+	$(CC) -o tests/history_buffer_test $^
+
+history_buffer.o: history_buffer/history_buffer.c
+	$(CC) -c $^
+
+history_buffer_test.o: history_buffer/history_buffer_test.c history_buffer.o
+	$(CC) -c $<
+
+# LIST
+
+list_test: list_test.o list.o
+	$(CC) -o tests/list_test $^
+
+list.o: list/list.c
+	$(CC) -c $^
+
+list_test.o: list/list_test.c list.o
+	$(CC) -c $<
+
+
+# HASH_TABLE
+
+hash_table_test: hash_table_test.o hash_table.o
+	$(CC) -o tests/hash_table_test $^
+
+hash_table.o: hash_table/hash_table.c
+	$(CC) -c $^
+
+hash_table_test.o: hash_table/hash_table_test.c hash_table.o
 	$(CC) -c $^
 
 # LZ
