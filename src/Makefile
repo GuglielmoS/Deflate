@@ -59,7 +59,7 @@ hash_table_test.o: hash_table/hash_table_test.c hash_table.o list.o
 
 # DEFLATE
 
-deflate_test: deflate_test.o deflate.o list.o hash_table.o file_stream.o history_buffer.o file_stream.o
+deflate_test: deflate_test.o deflate.o list.o hash_table.o file_stream.o history_buffer.o file_stream.o lz_queue.o lz_element.o
 	$(CC) -o tests/deflate_test $^
 
 deflate.o: deflate.c

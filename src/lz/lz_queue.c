@@ -70,3 +70,8 @@ bool LZ_Queue_is_empty(LZ_Queue *q)
 {
     return q->head == NULL && q->tail == NULL;
 }
+
+void LZ_Queue_destroy(LZ_Queue *q)
+{
+    // TODO
+}

@@ -1,6 +1,8 @@
 #include <stdbool.h>
 
 #include "list/list.h"
+#include "lz/lz_queue.h"
+#include "lz/lz_element.h"
 #include "hash_table/hash_table.h"
 #include "file_stream/file_stream.h"
 #include "history_buffer/history_buffer.h"
@@ -10,9 +12,11 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
     History_Buffer *history_buf = History_Buffer_new();
     File_Stream *in_fs = File_Stream_new(in_file_name);
     Hash_Table h_table;
+    LZ_Queue lz_queue;
 
-    // set all to NULL
+    // data structures init
     Hash_Table_init(h_table);
+    LZ_Queue_init(&lz_queue);
 
     uint8_t next3B[3];
     bool    finished = false;
@@ -34,7 +38,7 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
         // as literals, and set the 'finished' flag to 'true'.
         if (in_fs->is_finished || i < 3) {
             for (size_t j = 0; j < i-1; j++) {
-                printf("%c", next3B[j]);
+                LZ_Queue_enqueue(&lz_queue, LZ_Literal_new(next3B[j]));
             }
 
             finished = true;
@@ -46,7 +50,7 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
 
             List chain = Hash_Table_get(h_table, next3B);
             if (chain == NULL) {
-                printf("%c", next3B[0]);
+                LZ_Queue_enqueue(&lz_queue, LZ_Literal_new(next3B[0]));
                 // put the sequence in the hash table
                 // last_buf_pos represent the position of the current
                 // 3 bytes sequence.
@@ -127,7 +131,7 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
                     next_byte_start = 2;
                 }
                 else {
-                    printf("[D: %d L: %d]", (int)max_seq_pos, (int)max_seq_lenght);
+                    LZ_Queue_enqueue(&lz_queue, LZ_Pair_new((LZ_Pair){max_seq_pos,max_seq_lenght}));
 
                     // restore the information of the file stream and the
                     // history buffer
@@ -145,21 +149,36 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
 
         //getchar();
     }
-        /*
-        printf("\nHash table content: ");
-        for (size_t i = 0; i < HASH_TABLE_SIZE; i++) {
-            if (h_table[i] != NULL) {
-                List tmp = h_table[i];
-                while (tmp != NULL) {
-                    printf("%d ", (int)(tmp->value));
-                    tmp = tmp->next;
-                }
-                putchar('\n');
-            }
+
+    // processing LZ_Queue
+    while (!LZ_Queue_is_empty(&lz_queue)) {
+        LZ_Element *next_el = LZ_Queue_dequeue(&lz_queue);
+
+        if (next_el->is_literal(next_el)) {
+            printf("%c", next_el->get_literal(next_el));
         }
-        */
+        else {
+            printf("[D: %d L: %d]", next_el->get_distance(next_el),
+                                    next_el->get_length(next_el));
+        }
+    }
 
     // freeing memory
     History_Buffer_destroy(history_buf);
     File_Stream_destroy(in_fs);
+    LZ_Queue_destroy(&lz_queue);
 }
+
+/*
+printf("\nHash table content: ");
+for (size_t i = 0; i < HASH_TABLE_SIZE; i++) {
+    if (h_table[i] != NULL) {
+        List tmp = h_table[i];
+        while (tmp != NULL) {
+            printf("%d ", (int)(tmp->value));
+            tmp = tmp->next;
+        }
+        putchar('\n');
+    }
+}
+*/
