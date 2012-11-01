@@ -2,7 +2,15 @@
 
 int main(int argc, char *argv[])
 {
-    DF_encode("test", "test_compressed");
+    if (argc == 2) {
+        Deflate_encode(argv[1], "compressed_result");
+    }
+    else if (argc == 3) {
+        Deflate_encode(argv[1], argv[2]);
+    }
+    else {
+        Deflate_encode("test", "compressed_result");
+    }
 
     return 0;
 }

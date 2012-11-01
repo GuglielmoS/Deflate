@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <string.h>
 
 #include "list/list.h"
 #include "lz/lz_queue.h"
@@ -7,7 +8,9 @@
 #include "file_stream/file_stream.h"
 #include "history_buffer/history_buffer.h"
 
-void DF_encode(const char *in_file_name, const char *out_file_name)
+#define LZ_MIN_SEQ_LEN 5
+
+void Deflate_encode(const char *in_file_name, const char *out_file_name)
 {
     History_Buffer *history_buf = History_Buffer_new();
     File_Stream *in_fs = File_Stream_new(in_file_name);
@@ -18,10 +21,13 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
     Hash_Table_init(h_table);
     LZ_Queue_init(&lz_queue);
 
+    // for statistics
+    unsigned long lit_count = 0, pair_count = 0; 
+
     uint8_t next3B[3];
     bool    finished = false;
-    size_t  i, last_buf_pos,
-            next_byte_start = 0;
+    size_t  i, last_buf_pos, next_byte_start = 0;
+
     while (!finished) {
         // retrieving the next three bytes
         i = next_byte_start;
@@ -39,6 +45,7 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
         if (in_fs->is_finished || i < 3) {
             for (size_t j = 0; j < i-1; j++) {
                 LZ_Queue_enqueue(&lz_queue, LZ_Literal_new(next3B[j]));
+                lit_count++;
             }
 
             finished = true;
@@ -51,6 +58,8 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
             List chain = Hash_Table_get(h_table, next3B);
             if (chain == NULL) {
                 LZ_Queue_enqueue(&lz_queue, LZ_Literal_new(next3B[0]));
+                lit_count++;
+
                 // put the sequence in the hash table
                 // last_buf_pos represent the position of the current
                 // 3 bytes sequence.
@@ -106,7 +115,7 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
 
                         // if the current sequence is the longest
                         if (k > max_seq_lenght) {
-                            max_seq_lenght = k + 1;
+                            max_seq_lenght = k;
                             max_seq_pos    = last_buf_pos - buf_start_pos;
                         }
 
@@ -127,16 +136,26 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
                     chain = chain->next;
                 }
 
-                if (max_seq_pos == -1) {
+                // if max_seq_pos is equal to -1, it means that the 3 current
+                // bytes hash is referred to a list of position that doesn't
+                // contain them. That behaviour is caused by an hash collision.
+                if (max_seq_pos == -1 || max_seq_lenght < LZ_MIN_SEQ_LEN) {
+                    LZ_Queue_enqueue(&lz_queue, LZ_Literal_new(next3B[0]));
+                    lit_count++;
+
+                    // skip the first byte and proceed with a new sequence
+                    next3B[0] = next3B[1];
+                    next3B[1] = next3B[2];
                     next_byte_start = 2;
                 }
                 else {
                     LZ_Queue_enqueue(&lz_queue, LZ_Pair_new((LZ_Pair){max_seq_pos,max_seq_lenght}));
+                    pair_count++;
 
                     // restore the information of the file stream and the
                     // history buffer
-                    in_fs->buf_pos = fs_buf_pos + max_seq_lenght - 4;
-                    in_fs->n_available_bytes = fs_n_available_bytes-max_seq_lenght + 4;
+                    in_fs->buf_pos = fs_buf_pos + max_seq_lenght - 3;
+                    in_fs->n_available_bytes = fs_n_available_bytes - max_seq_lenght + 3;
                     if (in_fs->n_available_bytes <= 0) {
                         in_fs->is_finished = true;
                     }
@@ -146,10 +165,14 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
                 }
             }
         }
-
-        //getchar();
     }
 
+    printf("STATISTICS:\n");
+    printf("\tLITERAL:   %lu\n", lit_count);
+    printf("\tD&L PAIR:  %lu\n", pair_count);
+    printf("\tTOT Bytes: %lu\n", lit_count + pair_count*3);
+    /*
+    printf("\nLZ_QUEUE:\n");
     // processing LZ_Queue
     while (!LZ_Queue_is_empty(&lz_queue)) {
         LZ_Element *next_el = LZ_Queue_dequeue(&lz_queue);
@@ -162,6 +185,34 @@ void DF_encode(const char *in_file_name, const char *out_file_name)
                                     next_el->get_length(next_el));
         }
     }
+    */
+
+
+
+    // LZ decompression test
+    History_Buffer *hbuf = History_Buffer_new();
+    FILE *out_fp = fopen(out_file_name, "wb");
+    while (!LZ_Queue_is_empty(&lz_queue)) {
+        LZ_Element *next_el = LZ_Queue_dequeue(&lz_queue);
+
+        if (next_el->is_literal(next_el)) {
+            History_Buffer_add(hbuf, next_el->get_literal(next_el));
+            uint8_t byte = next_el->get_literal(next_el);
+            fwrite((uint8_t*)&byte,sizeof(uint8_t),1,out_fp);
+        }
+        else {
+            size_t init_pos = (hbuf->next_pos - next_el->get_distance(next_el));
+            for (size_t i = 0; i < next_el->get_length(next_el); i++) {
+                uint8_t byte = History_Buffer_get(hbuf, init_pos + i);
+                History_Buffer_add(hbuf, byte);
+                fwrite((uint8_t*)&byte,sizeof(uint8_t),1,out_fp);
+            }
+        }
+    }
+    fclose(out_fp);
+    History_Buffer_destroy(hbuf);
+
+
 
     // freeing memory
     History_Buffer_destroy(history_buf);
