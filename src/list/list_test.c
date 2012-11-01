@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 
     List tmp = l;
     while (tmp != NULL) {
-        printf("%d ", tmp->value);
+        printf("%d ", (int)(tmp->value));
         tmp = tmp->next;
     }
     putchar('\n');

@@ -1,9 +1,9 @@
 CC=gcc -Wall -std=c99
 
-tests: lz_test huffman_test history_buffer_test list_test hash_table_test
+tests: lz_test huffman_test history_buffer_test list_test hash_table_test deflate_test file_stream_test
 
 clean:
-	rm -rf *.o tests/*
+	rm -rf *.o tests/*_test
 
 # GENERAL
 
@@ -12,6 +12,16 @@ stream.o: stream/stream.c
 
 util.o: util.c
 	$(CC) -c $^
+
+# FILE STREAM
+file_stream_test: file_stream_test.o file_stream.o
+	$(CC) -o tests/file_stream_test $^
+
+file_stream.o: file_stream/file_stream.c
+	$(CC) -c $^
+
+file_stream_test.o: file_stream/file_stream_test.c file_stream.o
+	$(CC) -c $<
 
 # HISTORY BUFFER 
 
@@ -38,14 +48,25 @@ list_test.o: list/list_test.c list.o
 
 # HASH_TABLE
 
-hash_table_test: hash_table_test.o hash_table.o
+hash_table_test: hash_table_test.o hash_table.o list.o
 	$(CC) -o tests/hash_table_test $^
 
 hash_table.o: hash_table/hash_table.c
 	$(CC) -c $^
 
-hash_table_test.o: hash_table/hash_table_test.c hash_table.o
+hash_table_test.o: hash_table/hash_table_test.c hash_table.o list.o
+	$(CC) -c $<
+
+# DEFLATE
+
+deflate_test: deflate_test.o deflate.o list.o hash_table.o file_stream.o history_buffer.o file_stream.o
+	$(CC) -o tests/deflate_test $^
+
+deflate.o: deflate.c
 	$(CC) -c $^
+
+deflate_test.o: deflate_test.c deflate.o 
+	$(CC) -c $<
 
 # LZ
 

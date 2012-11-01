@@ -18,7 +18,10 @@ typedef struct {
 } History_Buffer;
 
 /** History Buffer constructor **/
-void History_Buffer_create(History_Buffer **hb);
+History_Buffer* History_Buffer_new();
+
+/** History Buffer destructor **/
+void History_Buffer_destroy(History_Buffer *hb);
 
 /** History Buffer accessors **/
 void    History_Buffer_add(History_Buffer *hb, uint8_t byte);

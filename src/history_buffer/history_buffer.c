@@ -1,17 +1,38 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "history_buffer.h"
 
-void History_Buffer_create(History_Buffer **hb)
+/**
+ * Allocate and return a new History Buffer.
+ */
+History_Buffer* History_Buffer_new()
 {
-    *hb = (History_Buffer*)malloc(sizeof(History_Buffer));
+    History_Buffer *hb = (History_Buffer*)malloc(sizeof(History_Buffer));
 
-    // setting to zero the buffer content
-    memset((*hb)->buf, 0x00, HISTORY_BUFFER_SIZE);
-    // setting the stat position to 0
-    (*hb)->next_pos = 0;
+    if (hb == NULL) {
+        fprintf(stderr, "[ERROR-History_Buffer_new] malloc failed!\n");
+        exit(EXIT_FAILURE);
+    }
+    else {
+        // setting to zero the buffer content
+        memset(hb->buf, 0x00, HISTORY_BUFFER_SIZE);
+        // setting the stat position to 0
+        hb->next_pos = 0;
+    }
+
+    return hb;
 }
+
+/**
+ * Deallocate the History Buffer.
+ */
+void History_Buffer_destroy(History_Buffer *hb)
+{
+    free(hb);
+}
+
 
 /**
  * Add 'byte' to the buffer 'ht'.

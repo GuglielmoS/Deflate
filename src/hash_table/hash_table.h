@@ -1,6 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "../list/list.h"
+
 #ifndef __HASH_TABLE__
 #define __HASH_TABLE__
 
@@ -14,11 +16,14 @@
 typedef uint8_t Hash_Value;
 typedef uint8_t Hash_Key[3];
 
-typedef Hash_Value Hash_Table[HASH_TABLE_SIZE];
+typedef List Hash_Table[HASH_TABLE_SIZE];
+
+/** Helpers **/
+void Hash_Table_init(Hash_Table ht);
 
 /** Hash_Table accessors **/
-void       Hash_Table_put(Hash_Table ht, Hash_Key key, Hash_Value val);
-Hash_Value Hash_Table_get(Hash_Table ht, Hash_Key key);
+void Hash_Table_put(Hash_Table ht, Hash_Key key, Hash_Value value);
+List Hash_Table_get(Hash_Table ht, Hash_Key key);
 
 
 #endif /* __HASH_TABLE__ */

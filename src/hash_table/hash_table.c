@@ -1,5 +1,7 @@
 #include "hash_table.h"
 
+#include <string.h>
+
 /**
  * Private functions.
  */
@@ -20,19 +22,29 @@ size_t Hash_Table_hash_key(Hash_Key key)
  * Public functions.
  */
 
+/**
+ * Set to zero the Hash_Table content. 
+ */
+void Hash_Table_init(Hash_Table ht)
+{
+    // setting all pointers to NULL
+    for (size_t i = 0; i < HASH_TABLE_SIZE; i++) {
+        ht[i] = NULL;
+    }
+}
 
 /**
  * Put in the hash table the value 'val' identified by the key 'key'.
  */
-void Hash_Table_put(Hash_Table ht, Hash_Key key, Hash_Value val)
+void Hash_Table_put(Hash_Table ht, Hash_Key key, Hash_Value value)
 {
-    ht[Hash_Table_hash_key(key)] = val;
+    List_add(&ht[Hash_Table_hash_key(key)], value);
 }
 
 /**
- * Return the value identified by 'key'.
+ * Return the list of values identified by 'key'.
  */
-Hash_Value Hash_Table_get(Hash_Table ht, Hash_Key key)
+List Hash_Table_get(Hash_Table ht, Hash_Key key)
 {
     return ht[Hash_Table_hash_key(key)];
 }
