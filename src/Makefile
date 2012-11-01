@@ -85,6 +85,11 @@ lz.o: lz/lz.c lz_stream.o
 lz_test.o: lz/lz_test.c lz.o
 	$(CC) -c $<
 
+# LZ_QUEUE
+
+lz_queue.o: lz/lz_queue.c
+	$(CC) -c $^
+
 # HUFFMAN
 
 huffman_test: huffman.o huffman_test.o util.o
