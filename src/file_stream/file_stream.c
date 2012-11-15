@@ -6,8 +6,8 @@
 void File_Stream_load_buffer(File_Stream *fs)
 {
     fs->buf_pos = 0;
-    fs->n_available_bytes = fread(fs->buffer, sizeof(uint8_t), BUFSIZ, fs->fd);
     fs->is_finished = false;
+    fs->n_available_bytes = fread(fs->buffer, sizeof(uint8_t), FS_BUFFER_SIZE, fs->fd);
 
     if (fs->n_available_bytes == 0) {
         fs->is_finished = true;
@@ -49,8 +49,7 @@ uint8_t File_Stream_next_byte(File_Stream *fs)
             return read_byte;
         }
         else {
-            fprintf(stderr, "[ERROR-File_Stream_next_byte] this shouldn't be"
-                             "never happend!\n");
+            fprintf(stderr, "[ERROR-File_Stream_next_byte] this shouldn't happend!\n");
             exit(EXIT_FAILURE);
         }
     }

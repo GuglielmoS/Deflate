@@ -7,12 +7,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define FS_BUFFER_SIZE 8192
+
 typedef struct {
-    FILE    *fd;                // file handler (file descriptor)
-    uint8_t  buffer[BUFSIZ];    // temporary buffer
-    size_t   buf_pos;           // current position in the buffer
-    size_t   n_available_bytes; // number of available bytes
-    bool     is_finished;       // true if the file is finished
+    FILE    *fd;                     // file handler (file descriptor)
+    uint8_t  buffer[FS_BUFFER_SIZE]; // temporary buffer
+    size_t   buf_pos;                // current position in the buffer
+    size_t   n_available_bytes;      // number of available bytes
+    bool     is_finished;            // true if the file is finished
 } File_Stream;
 
 File_Stream* File_Stream_new(const char *file_name);

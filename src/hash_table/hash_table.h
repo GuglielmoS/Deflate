@@ -11,7 +11,7 @@
  * list of integer.
  */
 
-#define HASH_TABLE_SIZE 31
+#define HASH_TABLE_SIZE 127
 
 typedef uint8_t Hash_Value;
 typedef uint8_t Hash_Key[3];

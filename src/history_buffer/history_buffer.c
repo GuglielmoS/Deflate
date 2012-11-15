@@ -50,5 +50,5 @@ void History_Buffer_add(History_Buffer *hb, uint8_t byte)
  */
 uint8_t History_Buffer_get(History_Buffer *hb, size_t index)
 {
-    return hb->buf[index];
+    return hb->buf[index % HISTORY_BUFFER_SIZE];
 }
