@@ -16,6 +16,10 @@ typedef struct {
     LZ_Queue_Node *head, *tail;    // head and tail pointer of the queue
 } LZ_Queue;
 
+/*** USEFUL MACROS ***/
+#define LZ_ENQUEUE_LITERAL(queue,lit)   LZ_Queue_enqueue(&queue,LZ_Literal_new(lit));
+#define LZ_ENQUEUE_PAIR(queue,dist,len) LZ_Queue_enqueue(&queue, LZ_Pair_new((LZ_Pair){dist,len}));
+
 /** LZ_Queue accessors **/
 void LZ_Queue_enqueue(LZ_Queue *q, LZ_Queue_Value value);
 LZ_Queue_Value LZ_Queue_dequeue(LZ_Queue *q);

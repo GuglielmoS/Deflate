@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -8,56 +10,40 @@
 #include "file_stream/file_stream.h"
 #include "history_buffer/history_buffer.h"
 
-#define LZ_MIN_SEQ_LEN 5
-#define LZ_MAX_SEQ_LEN 258
+#define LZ_MIN_SEQ_LEN    5
+#define LZ_MAX_SEQ_LEN    258
 
-//#define DEBUG
+/*** USEFUL MACROS ***/
 
-void LZ_decode_queue(LZ_Queue *queue, FILE *f_out)
+// shift the first two element of a vector v
+#define SHIFT2B(vec) vec[0]=vec[1];vec[1]=vec[2];
+
+void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 {
     if (f_out != NULL) {
-        History_Buffer *hbuf   = History_Buffer_new();
+        History_Buffer *hbuf = History_Buffer_new();
 
         while (!LZ_Queue_is_empty(queue)) {
             LZ_Element *next_el = LZ_Queue_dequeue(queue);
 
-            if (next_el->is_literal(next_el)) {
+            if (LZE_IS_LITERAL(next_el)) {
                 History_Buffer_add(hbuf, next_el->get_literal(next_el));
 
-                uint8_t byte = next_el->get_literal(next_el);
+                uint8_t byte = LZE_GET_LITERAL(next_el);
                 fwrite((uint8_t*)&byte, sizeof(uint8_t), 1, f_out);
             }
             else {
                 size_t init_pos = (hbuf->next_pos - next_el->get_distance(next_el));
 
-#ifdef DEBUG
-                printf("[D: %d, L: %d]\n",next_el->get_distance(next_el), next_el->get_length(next_el));
-                printf("HISTORY BUF:\n");
-                for (size_t i = 0; i < hbuf->next_pos; i++) {
-                    putchar(History_Buffer_get(hbuf, i));
-                }
-                putchar('\n');
-
-                printf("STO AGGIUNGENDO: ");
-#endif
-
-                for (size_t i = 0; i < next_el->get_length(next_el); i++) {
+                for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
                     uint8_t byte = History_Buffer_get(hbuf, init_pos + i);
                     History_Buffer_add(hbuf, byte);
 
-#ifdef DEBUG
-                    printf("0x%X ", byte);
-#endif
-
                     fwrite((uint8_t*)&byte, sizeof(uint8_t), 1, f_out);
                 }
-
-#ifdef DEBUG
-                putchar('\n');
-                getchar();
-#endif
             }
         }
+
         History_Buffer_destroy(hbuf);
     }
 }
@@ -68,6 +54,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
     File_Stream    *in_fs       = File_Stream_new(in_file_name);
     LZ_Queue        lz_queue;
     Hash_Table      h_table;
+    FILE *out_fp = fopen(out_file_name, "wb");
 
     // data structures init
     Hash_Table_init(h_table);
@@ -93,9 +80,8 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
         // less characters, so we put them directly to the LZ_Queue
         // as literals, and set the 'finished' flag to 'true'.
         if (in_fs->is_finished || i < 3) {
-            //if (i < 3) i--;
             for (size_t j = 0; j < i; j++) {
-                LZ_Queue_enqueue(&lz_queue, LZ_Literal_new(next3B[j]));
+                LZ_ENQUEUE_LITERAL(lz_queue, next3B[j])
                 lit_count++;
             }
 
@@ -111,7 +97,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
             // thus the next three bytes sequence will be equal to the last
             // sequence except the third byte that will be read from the file.
             if (chain == NULL) {
-                LZ_Queue_enqueue(&lz_queue, LZ_Literal_new(next3B[0]));
+                LZ_ENQUEUE_LITERAL(lz_queue, next3B[0])
                 lit_count++;
 
                 // put the sequence in the hash table
@@ -119,13 +105,13 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                 Hash_Table_put(h_table, next3B, last_buf_pos);
 
                 // skip the first byte and proceed with a new sequence
-                next3B[0] = next3B[1]; next3B[1] = next3B[2];
                 next_byte_start = 2;
+                SHIFT2B(next3B)
             }
             else {
                 // max sequence lenght & position
                 int    max_seq_length   = 0;
-                size_t max_seq_distance = -1;
+                size_t max_seq_distance = -1; // the distance is always positive
 
                 // save the current information about the file stream
                 // and the history buffer for the future restore
@@ -136,28 +122,33 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
 
                 bool   fs_is_finished = in_fs->is_finished;
 
-                size_t history_buf_pos     = history_buf->next_pos,
-                       max_history_buf_pos = history_buf->next_pos;
+                size_t history_buf_start_pos     = history_buf->start_pos,
+                       max_history_buf_start_pos = history_buf->start_pos,
+                       history_buf_pos           = history_buf->next_pos,
+                       max_history_buf_next_pos  = history_buf->next_pos;
 
                 uint8_t tmp_hist_buf[LZ_MAX_SEQ_LEN];
+                size_t  tmp_hist_buf_len = 0,
+                        hb_last_pos      = history_buf->next_pos;
 
-                // find the longest occurence by trying with every position
-                // of the chain
+
+                // find the longest occurence by trying with every position of the chain
                 while (chain != NULL) {
                     // check if the three bytes are those which we are searching for
-                    size_t k = 0;
-                    size_t buf_start_pos = chain->value;
+                    size_t k = 0,
+                           buf_start_pos = chain->value;
 
                     while (k < 3) {
                         uint8_t buf_byte = History_Buffer_get(history_buf,buf_start_pos+k);
                         if (buf_byte != next3B[k]) break;
-                        k++;
+                        else                       k++;
                     }
 
                     // if there is a match, find the length of the sequence
                     if (k == 3) {
-                        while (in_fs->n_available_bytes > 2 && k < LZ_MAX_SEQ_LEN &&
-                               history_buf->next_pos < HISTORY_BUFFER_SIZE-1) {
+                        hb_last_pos  = history_buf->next_pos;
+
+                        while (in_fs->n_available_bytes > 2 && k < LZ_MAX_SEQ_LEN) {
                             // getting the next byte
                             uint8_t next_byte = File_Stream_next_byte(in_fs);
 
@@ -174,6 +165,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                             else                       k++;
                         }
 
+                        // check for the last two bytes before the file buffer reload
                         if (in_fs->n_available_bytes <= 2) {
                             size_t j = 0;
                             while (j < in_fs->n_available_bytes) {
@@ -198,8 +190,15 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
 
                             // save the bytes written in the history buffer
                             // for the next restore
-                            memcpy(tmp_hist_buf, history_buf->buf + buf_start_pos + 3, k-3);
-                            max_history_buf_pos = history_buf->next_pos;
+                            //memcpy(tmp_hist_buf, history_buf->buf + buf_start_pos + 3, k-3);
+                            tmp_hist_buf_len = k-3;
+                            hb_last_pos = buf_start_pos + 3;
+                            for (size_t j = 0; j < tmp_hist_buf_len; j++) {
+                                tmp_hist_buf[j] = history_buf->buf[hb_last_pos + j % HISTORY_BUFFER_SIZE];
+                            }
+
+                            max_history_buf_next_pos  = history_buf->next_pos;
+                            max_history_buf_start_pos = history_buf->start_pos;
                         }
 
                         // restore the information of the file stream and the
@@ -208,6 +207,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                         in_fs->n_available_bytes = fs_n_available_bytes;
                         in_fs->is_finished       = fs_is_finished;
                         history_buf->next_pos    = history_buf_pos;
+                        history_buf->start_pos   = history_buf_start_pos;
                     }
                     else {
                         // this is not a valid occurrence
@@ -223,18 +223,18 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                 // bytes hash is referred to a list of positions that doesn't
                 // contain them. That behaviour is caused by an hash collision.
                 if (max_seq_distance == -1 || max_seq_length < LZ_MIN_SEQ_LEN) {
-                    LZ_Queue_enqueue(&lz_queue, LZ_Literal_new(next3B[0]));
+                    LZ_ENQUEUE_LITERAL(lz_queue,next3B[0])
                     lit_count++;
 
                     // skip the first byte and proceed with a new sequence
-                    next3B[0] = next3B[1]; next3B[1] = next3B[2];
                     next_byte_start = 2;
+                    SHIFT2B(next3B)
                 }
                 else {
-                    LZ_Queue_enqueue(&lz_queue,LZ_Pair_new((LZ_Pair){max_seq_distance,max_seq_length}));
+                    LZ_ENQUEUE_PAIR(lz_queue, max_seq_distance, max_seq_length)
                     pair_count++;
 
-                    // restore the information of the file stream and the history buffer
+                    // restore the information of the file stream
                     in_fs->buf_pos = max_fs_buf_pos - 1;
                     in_fs->n_available_bytes = max_n_avail_bytes + 1;
                     if (in_fs->n_available_bytes <= 0) {
@@ -242,8 +242,13 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                     }
 
                     // restore the history buffer
-                    memcpy(history_buf->buf+history_buf_pos, tmp_hist_buf, max_seq_length-3);
-                    history_buf->next_pos = (history_buf_pos + max_seq_length - 3) % HISTORY_BUFFER_SIZE;
+                    //memcpy(history_buf->buf+history_buf_pos, tmp_hist_buf, max_seq_length-3);
+                    for (size_t j = 0; j < tmp_hist_buf_len; j++) {
+                        history_buf->buf[hb_last_pos + j % HISTORY_BUFFER_SIZE] = tmp_hist_buf[j];
+                    }
+
+                    history_buf->next_pos  = max_history_buf_next_pos - 1;
+                    history_buf->start_pos = max_history_buf_start_pos;
 
                     // restore the start position of the next three bytes vector
                     next_byte_start = 0;
@@ -253,18 +258,18 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
     }
 
     printf("STATS:\n");
-    printf("\tLiteral:   %lu\n", lit_count);
-    printf("\tD&L pair:  %lu\n", pair_count);
-    printf("\tTot Bytes: %lu\n", lit_count + pair_count*3);
+    printf("\tLiteral:    %lu\n", lit_count);
+    printf("\tD&L pair:   %lu\n", pair_count);
+    printf("\tTot Bytes: ~%lu\n", lit_count + pair_count*3);
 
-    // LZ decompression test
-    FILE *out_fp = fopen(out_file_name, "wb");
-    LZ_decode_queue(&lz_queue, out_fp);
-    fclose(out_fp);
+    // process and destroy the queue
+    LZ_decode_process_queue(&lz_queue, out_fp);
+    LZ_Queue_destroy(&lz_queue);
 
     // freeing memory
     History_Buffer_destroy(history_buf);
     File_Stream_destroy(in_fs);
-    LZ_Queue_destroy(&lz_queue);
-}
 
+    // close output file
+    fclose(out_fp);
+}

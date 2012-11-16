@@ -34,6 +34,13 @@ typedef struct __lz_element {
     void        (*copy_to)(const struct __lz_element *, struct __lz_element  *);
 } LZ_Element;
 
+/*** USEFUL MACROS ***/
+#define LZE_GET_LITERAL(e)  LZ_Element_get_literal(e)
+#define LZE_GET_DISTANCE(e) LZ_Element_get_distance(e)
+#define LZE_GET_LENGTH(e)   LZ_Element_get_length(e)
+#define LZE_IS_LITERAL(e)   LZ_Element_is_literal(e)
+#define LZE_IS_PAIR(e)      LZ_Element_is_pair(e)
+
 /*** CONSTRUCTORS **/
 LZ_Element* LZ_Element_new();
 LZ_Element* LZ_Pair_new(LZ_Pair pair);

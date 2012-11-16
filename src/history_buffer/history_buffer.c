@@ -44,7 +44,7 @@ void History_Buffer_add(History_Buffer *hb, uint8_t byte)
         hb->start_pos++;
     }
     else {
-        if (hb->start_pos > 0) hb->start_pos++;
+        if (hb->start_pos > 0)                    hb->start_pos++;
         if (hb->start_pos == HISTORY_BUFFER_SIZE) hb->start_pos = 0;
     }
 

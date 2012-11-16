@@ -68,10 +68,27 @@ LZ_Queue_Value LZ_Queue_dequeue(LZ_Queue *q)
 
 bool LZ_Queue_is_empty(LZ_Queue *q)
 {
-    return q->head == NULL && q->tail == NULL;
+    return q->head == NULL;
 }
 
 void LZ_Queue_destroy(LZ_Queue *q)
 {
-    // TODO
+    if (q != NULL) {
+        if (q->head == q->tail) {
+            if (q->head != NULL) {
+                free(q->head);
+            }
+        }
+        else {
+            while (q->head) {
+                LZ_Queue_Node *tmp_node = q->head;
+                q->head = q->head->next;
+                free(tmp_node);
+            }
+        }
+
+        q->head = NULL;
+        q->tail = NULL;
+    }
+
 }
