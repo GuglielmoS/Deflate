@@ -38,7 +38,9 @@ void Hash_Table_init(Hash_Table ht)
  */
 void Hash_Table_put(Hash_Table ht, Hash_Key key, Hash_Value value)
 {
-    List_add(&ht[Hash_Table_hash_key(key)], value);
+    List *cur_list = &ht[Hash_Table_hash_key(key)];
+    List_add(cur_list, value);
+    List_keep_only_last_n_values(cur_list, HASH_TABLE_MAX_LIST_LEN);
 }
 
 /**
@@ -47,4 +49,17 @@ void Hash_Table_put(Hash_Table ht, Hash_Key key, Hash_Value value)
 List Hash_Table_get(Hash_Table ht, Hash_Key key)
 {
     return ht[Hash_Table_hash_key(key)];
+}
+
+/**
+ * 
+ */
+void Hash_Table_delete_old_values(Hash_Table ht)
+{
+    for (size_t i = 0; i < HASH_TABLE_SIZE; i++) {
+        // if the current value is a non-empty list
+        if (ht[i] != NULL) {
+            List_keep_only_last_n_values(&ht[i], HASH_TABLE_MAX_LIST_LEN);
+        }
+    }
 }

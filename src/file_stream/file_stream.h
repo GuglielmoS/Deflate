@@ -7,7 +7,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define FS_BUFFER_SIZE 8192
+#define FS_BUFFER_SIZE 32768
+//8192
 
 typedef struct {
     FILE    *fd;                     // file handler (file descriptor)
@@ -21,5 +22,6 @@ File_Stream* File_Stream_new(const char *file_name);
 uint8_t      File_Stream_next_byte(File_Stream *fs);
 bool         File_Stream_is_finished(File_Stream *fs);
 void         File_Stream_destroy(File_Stream *fs);
+void         File_Stream_force_reload(File_Stream *fs);
 
 #endif /* __FILE_STREAM__ */

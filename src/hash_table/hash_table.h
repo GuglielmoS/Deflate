@@ -11,7 +11,8 @@
  * list of integer.
  */
 
-#define HASH_TABLE_SIZE 127
+#define HASH_TABLE_SIZE 3079
+#define HASH_TABLE_MAX_LIST_LEN 10
 
 typedef uint8_t Hash_Value;
 typedef uint8_t Hash_Key[3];
@@ -25,5 +26,6 @@ void Hash_Table_init(Hash_Table ht);
 void Hash_Table_put(Hash_Table ht, Hash_Key key, Hash_Value value);
 List Hash_Table_get(Hash_Table ht, Hash_Key key);
 
+void Hash_Table_delete_old_values(Hash_Table ht);
 
 #endif /* __HASH_TABLE__ */

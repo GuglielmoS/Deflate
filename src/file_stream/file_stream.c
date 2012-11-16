@@ -64,3 +64,9 @@ void File_Stream_destroy(File_Stream *fs)
     fclose(fs->fd);
     free(fs);
 }
+
+void File_Stream_force_reload(File_Stream *fs)
+{
+    File_Stream_load_buffer(fs);
+}
+

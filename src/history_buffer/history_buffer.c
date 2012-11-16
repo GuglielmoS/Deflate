@@ -20,6 +20,7 @@ History_Buffer* History_Buffer_new()
         memset(hb->buf, 0x00, HISTORY_BUFFER_SIZE);
         // setting the stat position to 0
         hb->next_pos = 0;
+        hb->start_pos = 0;
     }
 
     return hb;
@@ -33,14 +34,21 @@ void History_Buffer_destroy(History_Buffer *hb)
     free(hb);
 }
 
-
 /**
  * Add 'byte' to the buffer 'ht'.
  */
 void History_Buffer_add(History_Buffer *hb, uint8_t byte)
 {
-    hb->buf[hb->next_pos] = byte;
-    hb->next_pos = (hb->next_pos + 1) % HISTORY_BUFFER_SIZE;
+    if (hb->next_pos == HISTORY_BUFFER_SIZE) {
+        hb->next_pos = 0;
+        hb->start_pos++;
+    }
+    else {
+        if (hb->start_pos > 0) hb->start_pos++;
+        if (hb->start_pos == HISTORY_BUFFER_SIZE) hb->start_pos = 0;
+    }
+
+    hb->buf[hb->next_pos++] = byte;
 }
 
 /**
@@ -50,5 +58,5 @@ void History_Buffer_add(History_Buffer *hb, uint8_t byte)
  */
 uint8_t History_Buffer_get(History_Buffer *hb, size_t index)
 {
-    return hb->buf[index % HISTORY_BUFFER_SIZE];
+    return hb->buf[(hb->start_pos + index) % HISTORY_BUFFER_SIZE];
 }

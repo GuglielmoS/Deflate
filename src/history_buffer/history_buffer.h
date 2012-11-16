@@ -9,12 +9,14 @@
  * to an a circular buffer of bytes.
  */
 
-#define HISTORY_BUFFER_SIZE 32768 // 32Kb of history
+// 32Kb of history
+#define HISTORY_BUFFER_SIZE 32768
 
 /** History Buffer data structure **/
 typedef struct {
     uint8_t buf[HISTORY_BUFFER_SIZE]; // buffer used for storing data
     size_t  next_pos;                 // position of the next byte
+    size_t  start_pos;
 } History_Buffer;
 
 /** History Buffer constructor **/
