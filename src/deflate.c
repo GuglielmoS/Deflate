@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "deflate.h"
 #include "list/list.h"
 #include "lz/lz_queue.h"
 #include "lz/lz_element.h"
@@ -10,13 +11,8 @@
 #include "file_stream/file_stream.h"
 #include "history_buffer/history_buffer.h"
 
-#define LZ_MIN_SEQ_LEN    5
-#define LZ_MAX_SEQ_LEN    258
-
-/*** USEFUL MACROS ***/
-
-// shift the first two element of a vector v
-#define SHIFT2B(vec) vec[0]=vec[1];vec[1]=vec[2];
+#define LZ_MIN_SEQ_LEN 6
+#define LZ_MAX_SEQ_LEN 258
 
 void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 {
