@@ -18,7 +18,7 @@ History_Buffer* History_Buffer_new()
     else {
         // setting to zero the buffer content
         memset(hb->buf, 0x00, HISTORY_BUFFER_SIZE);
-        // setting the stat position to 0
+        // setting the start position to 0
         hb->next_pos = 0;
         hb->start_pos = 0;
     }
@@ -35,7 +35,7 @@ void History_Buffer_destroy(History_Buffer *hb)
 }
 
 /**
- * Adds 'byte' to the buffer 'ht'.
+ * Adds 'byte' to the buffer 'hb'.
  */
 void History_Buffer_add(History_Buffer *hb, uint8_t byte)
 {
@@ -44,8 +44,8 @@ void History_Buffer_add(History_Buffer *hb, uint8_t byte)
         hb->start_pos++;
     }
     else {
+        if (hb->start_pos >  0)                   hb->start_pos++;
         if (hb->start_pos == HISTORY_BUFFER_SIZE) hb->start_pos = 0;
-        if (hb->start_pos > 0)                    hb->start_pos++;
     }
 
     hb->buf[hb->next_pos++] = byte;
@@ -65,16 +65,16 @@ uint8_t History_Buffer_get(History_Buffer *hb, size_t index)
  */
 void History_Buffer_Context_save(History_Buffer *hb, History_Buffer_Context *c)
 {
-    if (c != NULL && hb != NULL) {
-        c->next_pos = hb->next_pos;
+    if (hb != NULL && c != NULL) {
+        c->next_pos  = hb->next_pos;
         c->start_pos = hb->start_pos;
     }
 }
 
 void History_Buffer_Context_restore(History_Buffer *hb, History_Buffer_Context *c)
 {
-    if (c != NULL && hb != NULL) {
-        hb->next_pos = c->next_pos;
+    if (hb != NULL && c != NULL) {
+        hb->next_pos  = c->next_pos;
         hb->start_pos = c->start_pos;
     }
 }

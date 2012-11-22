@@ -66,6 +66,10 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
     Hash_Table h_table;
 
     FILE *out_fp = fopen(out_file_name, "wb");
+    if (out_fp == NULL) {
+        fprintf(stderr, "[ERROR-Deflate_encode] fopen failed on %s\n", out_file_name);
+        exit(EXIT_FAILURE);
+    }
 
     // data structures init
     Hash_Table_init(h_table);
@@ -127,8 +131,9 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
 
                 // temporary buffer
                 uint8_t max_hist_buf[LZ_MAX_SEQ_LEN], tmp_hist_buf[LZ_MAX_SEQ_LEN];
-                size_t  max_hist_buf_len = 0, tmp_hist_buf_len = 0,
-                        hb_last_pos      = history_buf->next_pos;
+                size_t  max_hist_buf_len = 0, tmp_hist_buf_len = 0;
+
+                size_t  hb_last_pos      = history_buf->next_pos;
 
                 // save the currents file stream and history buffer contexts
                 File_Stream_Context_save(in_fs, &fs_init_context);
@@ -148,6 +153,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
 
                     // if there is a match, it finds the length of the sequence
                     if (k == 3) {
+                        tmp_hist_buf_len = 0;
                         hb_last_pos = history_buf->next_pos;
 
                         while (in_fs->n_available_bytes > 2 && k < LZ_MAX_SEQ_LEN) {
@@ -172,16 +178,19 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                             size_t j = 0;
                             while (j < in_fs->n_available_bytes) {
                                 uint8_t next_byte = in_fs->buffer[in_fs->buf_pos+j];
+
                                 tmp_hist_buf[tmp_hist_buf_len++] = history_buf->buf[history_buf->next_pos];
                                 History_Buffer_add(history_buf, next_byte);
+
                                 uint8_t buf_byte = History_Buffer_get(history_buf,buf_start_pos+k+j);
 
                                 if (next_byte != buf_byte) break;
                                 else                       j++;
                             }
-                            in_fs->n_available_bytes -= j+1;
-                            in_fs->buf_pos += j+1;
+
                             k += j;
+                            in_fs->buf_pos           += j+1;
+                            in_fs->n_available_bytes -= j+1;
                         }
 
                         // if the current sequence is the longest
@@ -197,10 +206,9 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
 
                             // save the bytes written in the history buffer
                             max_hist_buf_len = k - 3;
-                            size_t offset = buf_start_pos + 3;
                             for (size_t j = 0; j < max_hist_buf_len; j++) {
-                                max_hist_buf[j] = history_buf->buf[(offset + j) % HISTORY_BUFFER_SIZE];                                      }
-
+                                max_hist_buf[j] = history_buf->buf[(max_buf_start_pos + j) % HISTORY_BUFFER_SIZE];
+                            }
                         }
 
                         // restore the information of the file stream and the history buffer
@@ -211,7 +219,6 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                         for (size_t j = 0; j < tmp_hist_buf_len; j++) {
                             history_buf->buf[(hb_last_pos + j) % HISTORY_BUFFER_SIZE] = tmp_hist_buf[j];
                         }
-                        tmp_hist_buf_len = 0;
                     }
                     else {
                         // this is not a valid occurrence because the first 3 bytes

@@ -6,7 +6,7 @@
 
 /**
  * Defines the data structure and the accessor functions
- * to an a circular buffer of bytes.
+ * to a circular buffer of bytes.
  */
 
 // 32Kb of history

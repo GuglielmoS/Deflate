@@ -11,7 +11,10 @@
  * list of integer.
  */
 
-#define HASH_TABLE_SIZE 3079
+#define HASH_TABLE_SIZE 24593
+//6151
+//3079
+//12289
 #define HASH_TABLE_MAX_LIST_LEN 10
 
 typedef uint8_t Hash_Value;
