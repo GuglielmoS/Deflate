@@ -70,3 +70,22 @@ void File_Stream_force_reload(File_Stream *fs)
     File_Stream_load_buffer(fs);
 }
 
+/**
+ * File_Stream_Context functions.
+ */
+
+void File_Stream_Context_save(File_Stream *fs, File_Stream_Context *c)
+{
+    if (c != NULL) {
+        c->buf_pos           = fs->buf_pos;
+        c->is_finished       = fs->is_finished;
+        c->n_available_bytes = fs->n_available_bytes;
+    }
+}
+
+void File_Stream_Context_restore(File_Stream *fs, File_Stream_Context *c)
+{
+    fs->buf_pos           = c->buf_pos;
+    fs->is_finished       = c->is_finished;
+    fs->n_available_bytes = c->n_available_bytes;
+}

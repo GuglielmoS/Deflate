@@ -5,7 +5,7 @@
 #include "history_buffer.h"
 
 /**
- * Allocate and return a new History Buffer.
+ * Allocates and returns a new History Buffer.
  */
 History_Buffer* History_Buffer_new()
 {
@@ -27,7 +27,7 @@ History_Buffer* History_Buffer_new()
 }
 
 /**
- * Deallocate the History Buffer.
+ * Deallocates the History Buffer.
  */
 void History_Buffer_destroy(History_Buffer *hb)
 {
@@ -35,7 +35,7 @@ void History_Buffer_destroy(History_Buffer *hb)
 }
 
 /**
- * Add 'byte' to the buffer 'ht'.
+ * Adds 'byte' to the buffer 'ht'.
  */
 void History_Buffer_add(History_Buffer *hb, uint8_t byte)
 {
@@ -44,8 +44,8 @@ void History_Buffer_add(History_Buffer *hb, uint8_t byte)
         hb->start_pos++;
     }
     else {
-        if (hb->start_pos > 0)                    hb->start_pos++;
         if (hb->start_pos == HISTORY_BUFFER_SIZE) hb->start_pos = 0;
+        if (hb->start_pos > 0)                    hb->start_pos++;
     }
 
     hb->buf[hb->next_pos++] = byte;
@@ -53,10 +53,28 @@ void History_Buffer_add(History_Buffer *hb, uint8_t byte)
 
 /**
  * Returns the byte at the position 'index'.
- * ATTENTION: it doesn't check if index is greater than the
- *            size of the buffer.
  */
 uint8_t History_Buffer_get(History_Buffer *hb, size_t index)
 {
     return hb->buf[(hb->start_pos + index) % HISTORY_BUFFER_SIZE];
+}
+
+
+/**
+ * History_Buffer_Context functions.
+ */
+void History_Buffer_Context_save(History_Buffer *hb, History_Buffer_Context *c)
+{
+    if (c != NULL && hb != NULL) {
+        c->next_pos = hb->next_pos;
+        c->start_pos = hb->start_pos;
+    }
+}
+
+void History_Buffer_Context_restore(History_Buffer *hb, History_Buffer_Context *c)
+{
+    if (c != NULL && hb != NULL) {
+        hb->next_pos = c->next_pos;
+        hb->start_pos = c->start_pos;
+    }
 }

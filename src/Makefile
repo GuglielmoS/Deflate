@@ -1,5 +1,8 @@
 CC=gcc -Wall -std=c99
 
+deflate_test: deflate_test.o deflate.o list.o hash_table.o file_stream.o history_buffer.o file_stream.o lz_queue.o lz_element.o
+	$(CC) -o tests/deflate_test $^
+
 tests: lz_test huffman_test history_buffer_test list_test hash_table_test deflate_test file_stream_test
 
 clean:
@@ -58,9 +61,6 @@ hash_table_test.o: hash_table/hash_table_test.c hash_table.o list.o
 	$(CC) -c $<
 
 # DEFLATE
-
-deflate_test: deflate_test.o deflate.o list.o hash_table.o file_stream.o history_buffer.o file_stream.o lz_queue.o lz_element.o
-	$(CC) -o tests/deflate_test $^
 
 deflate.o: deflate.c
 	$(CC) -c $^

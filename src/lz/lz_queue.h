@@ -17,8 +17,8 @@ typedef struct {
 } LZ_Queue;
 
 /*** USEFUL MACROS ***/
-#define LZ_ENQUEUE_LITERAL(queue,lit)   LZ_Queue_enqueue(&queue,LZ_Literal_new(lit));
-#define LZ_ENQUEUE_PAIR(queue,dist,len) LZ_Queue_enqueue(&queue, LZ_Pair_new((LZ_Pair){dist,len}));
+#define LZQ_ENQUEUE_LITERAL(queue,lit)   LZ_Queue_enqueue(&queue,LZ_Literal_new(lit));
+#define LZQ_ENQUEUE_PAIR(queue,dist,len) LZ_Queue_enqueue(&queue, LZ_Pair_new((LZ_Pair){dist,len}));
 
 /** LZ_Queue accessors **/
 void LZ_Queue_enqueue(LZ_Queue *q, LZ_Queue_Value value);
