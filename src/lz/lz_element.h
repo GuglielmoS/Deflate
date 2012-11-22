@@ -35,11 +35,11 @@ typedef struct __lz_element {
 } LZ_Element;
 
 /*** USEFUL MACROS ***/
-#define LZE_GET_LITERAL(e)  LZ_Element_get_literal(e)
-#define LZE_GET_DISTANCE(e) LZ_Element_get_distance(e)
-#define LZE_GET_LENGTH(e)   LZ_Element_get_length(e)
-#define LZE_IS_LITERAL(e)   LZ_Element_is_literal(e)
-#define LZE_IS_PAIR(e)      LZ_Element_is_pair(e)
+#define LZE_GET_LITERAL(e)  (e)->value.l
+#define LZE_GET_DISTANCE(e) (e)->value.p.distance
+#define LZE_GET_LENGTH(e)   (e)->value.p.length
+#define LZE_IS_LITERAL(e)   ((e)->type == _LZ_LITERAL)
+#define LZE_IS_PAIR(e)      ((e)->type == _LZ_PAIR)
 
 /*** CONSTRUCTORS **/
 LZ_Element* LZ_Element_new();

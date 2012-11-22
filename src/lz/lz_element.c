@@ -10,7 +10,7 @@
 LZ_Element* LZ_Element_new()
 {
     LZ_Element *e = (LZ_Element*)malloc(sizeof(LZ_Element));
-    
+
     if (e == NULL) {
         fprintf(stderr, "[ERROR-LZ_new_element] malloc on LZ_Element failed!\n");
         exit(EXIT_FAILURE);

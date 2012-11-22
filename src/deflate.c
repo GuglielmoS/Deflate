@@ -24,22 +24,22 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
     if (f_out != NULL) {
         History_Buffer *hbuf = History_Buffer_new();
 
-        while (!LZ_Queue_is_empty(queue)) {
+        while (!LZQ_IS_EMPTY(queue)) {
             LZ_Element *next_el = LZ_Queue_dequeue(queue);
 
             if (LZE_IS_LITERAL(next_el)) {
-                History_Buffer_add(hbuf, next_el->get_literal(next_el));
-
                 uint8_t byte = LZE_GET_LITERAL(next_el);
+
+                History_Buffer_add(hbuf, byte);
                 fwrite((uint8_t*)&byte, sizeof(uint8_t), 1, f_out);
             }
             else {
-                size_t init_pos = (hbuf->next_pos - next_el->get_distance(next_el));
+                size_t init_pos = (hbuf->next_pos - LZE_GET_DISTANCE(next_el));
 
                 for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
                     uint8_t byte = History_Buffer_get(hbuf, init_pos + i);
-                    History_Buffer_add(hbuf, byte);
 
+                    History_Buffer_add(hbuf, byte);
                     fwrite((uint8_t*)&byte, sizeof(uint8_t), 1, f_out);
                 }
             }
@@ -49,6 +49,11 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
     }
 }
 
+/**
+ * Compress the content of the file identified by 'in_file_name' by applying
+ * the deflate algorithm defined in the RFC1950.
+ * The output will be written to the file 'out_file_name'.
+ */
 void Deflate_encode(const char *in_file_name, const char *out_file_name)
 {
     File_Stream         *in_fs = File_Stream_new(in_file_name);
@@ -115,16 +120,17 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                 SHIFT2B(next3B)
             }
             else {
-                // max sequence lenght & position
-                int    max_seq_length   = 0;
-                size_t max_seq_distance = -1; // the distance is always positive
-                size_t max_buf_start_pos         = history_buf->next_pos;
+                // max sequence distance/lenght & position
+                int    max_seq_length    =  0;
+                size_t max_seq_distance  = -1;
+                size_t max_buf_start_pos =  history_buf->next_pos;
 
+                // temporary buffer
                 uint8_t max_hist_buf[LZ_MAX_SEQ_LEN], tmp_hist_buf[LZ_MAX_SEQ_LEN];
                 size_t  max_hist_buf_len = 0, tmp_hist_buf_len = 0,
                         hb_last_pos      = history_buf->next_pos;
 
-                // save the current file stream context
+                // save the currents file stream and history buffer contexts
                 File_Stream_Context_save(in_fs, &fs_init_context);
                 History_Buffer_Context_save(history_buf, &hb_init_context);
 
@@ -140,7 +146,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                         else                       k++;
                     }
 
-                    // if there is a match, find the length of the sequence
+                    // if there is a match, it finds the length of the sequence
                     if (k == 3) {
                         hb_last_pos = history_buf->next_pos;
 
@@ -155,13 +161,13 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                             // retrieving the current byte on the buffer
                             uint8_t buf_byte = History_Buffer_get(history_buf,buf_start_pos+k);
 
-                            // if the new byte from the file isn't equal to the next byte 
+                            // if the new byte from the file isn't equal to the next byte
                             // in the buffer, the sequence is terminated
                             if (next_byte != buf_byte) break;
                             else                       k++;
                         }
 
-                        // check for the last two bytes before the file buffer reload
+                        // check for the last two bytes before the file buffer gets reloaded
                         if (in_fs->n_available_bytes <= 2) {
                             size_t j = 0;
                             while (j < in_fs->n_available_bytes) {
@@ -184,8 +190,10 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                             max_seq_distance  = last_buf_pos - buf_start_pos;
                             max_buf_start_pos = buf_start_pos + 3;
 
+                            // history buffer and file stream contexts save
                             history_buf->next_pos--;
                             History_Buffer_Context_save(history_buf, &hb_max_seq_context);
+                            File_Stream_Context_save(in_fs, &fs_max_seq_context);
 
                             // save the bytes written in the history buffer
                             max_hist_buf_len = k - 3;
@@ -193,7 +201,6 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                             for (size_t j = 0; j < max_hist_buf_len; j++) {
                                 max_hist_buf[j] = history_buf->buf[(offset + j) % HISTORY_BUFFER_SIZE];                                      }
 
-                            File_Stream_Context_save(in_fs, &fs_max_seq_context);
                         }
 
                         // restore the information of the file stream and the history buffer
