@@ -1,18 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
-
 #include "deflate.h"
-#include "list/list.h"
-#include "lz/lz_queue.h"
-#include "lz/lz_element.h"
-#include "hash_table/hash_table.h"
-#include "file_stream/file_stream.h"
-#include "history_buffer/history_buffer.h"
 
-#define LZ_MIN_SEQ_LEN 3
-#define LZ_MAX_SEQ_LEN 258
+//#define DEBUG
 
 /**
  * Decode the current queue and writes it out on the file related to f_out.
@@ -21,31 +9,38 @@
  */
 void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 {
-    if (f_out != NULL) {
-        History_Buffer *hbuf = History_Buffer_new();
+    if (f_out != NULL ) {
+        uint8_t tmp_buf[INPUT_BLOCK_SIZE];
+        size_t tmp_buf_pos = 0;
 
         while (!LZQ_IS_EMPTY(queue)) {
-            LZ_Element *next_el = LZ_Queue_dequeue(queue);
+            LZ_Element *next_el = LZQ_DEQUEUE(queue);
 
             if (LZE_IS_LITERAL(next_el)) {
                 uint8_t byte = LZE_GET_LITERAL(next_el);
+                tmp_buf[tmp_buf_pos++] = byte;
 
-                History_Buffer_add(hbuf, byte);
-                fwrite((uint8_t*)&byte, sizeof(uint8_t), 1, f_out);
+#ifdef DEBUG
+                printf("%c", byte);
+#endif
+
+                WRITE_BYTE(f_out, byte);
             }
             else {
-                size_t init_pos = (hbuf->next_pos - LZE_GET_DISTANCE(next_el));
+                size_t init_pos = tmp_buf_pos - LZE_GET_DISTANCE(next_el);
+
+#ifdef DEBUG
+                printf("[D: %d, L: %d]", LZE_GET_DISTANCE(next_el), LZE_GET_LENGTH(next_el));
+#endif
 
                 for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
-                    uint8_t byte = History_Buffer_get(hbuf, init_pos + i);
+                    uint8_t byte = tmp_buf[init_pos + i];
+                    tmp_buf[tmp_buf_pos++] = byte;
 
-                    History_Buffer_add(hbuf, byte);
-                    fwrite((uint8_t*)&byte, sizeof(uint8_t), 1, f_out);
+                    WRITE_BYTE(f_out, byte);
                 }
             }
         }
-
-        History_Buffer_destroy(hbuf);
     }
 }
 
@@ -56,229 +51,147 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
  */
 void Deflate_encode(const char *in_file_name, const char *out_file_name)
 {
-    File_Stream         *in_fs = File_Stream_new(in_file_name);
-    File_Stream_Context  fs_init_context, fs_max_seq_context;
+    FILE *in_f = fopen(in_file_name, "rb");
 
-    History_Buffer         *history_buf = History_Buffer_new();
-    History_Buffer_Context  hb_init_context, hb_max_seq_context;
-
-    LZ_Queue lz_queue;
-    Hash_Table h_table;
-
-    FILE *out_fp = fopen(out_file_name, "wb");
-    if (out_fp == NULL) {
-        fprintf(stderr, "[ERROR-Deflate_encode] fopen failed on %s\n", out_file_name);
-        exit(EXIT_FAILURE);
+    // open the file to compress
+    if (in_f == NULL) {
+        die_error("[ERROR-Deflate_encode] can't open the input file!\n");
     }
 
-    // data structures init
-    Hash_Table_init(h_table);
-    LZ_Queue_init(&lz_queue);
+    FILE *out_f = fopen(out_file_name, "wb");
+    if (out_f == NULL) {
+        fclose(in_f);
+        die_error("[ERROR-Deflate_encode] can't open/create the output file!\n");
+    }
 
-    uint8_t next3B[3];
-    bool    finished = false;
-    size_t  i, last_buf_pos, next_byte_start = 0;
+    uint8_t cur_block[INPUT_BLOCK_SIZE];
 
     // for statistics
-    unsigned long lit_count = 0, pair_count = 0;
+    size_t lit_count = 0, pair_count = 0;
 
-    while (!finished) {
-        // retrieving the next three bytes
-        i = next_byte_start;
-        last_buf_pos = history_buf->next_pos - next_byte_start;
-        while (!(in_fs->is_finished) && i < 3) {
-            next3B[i++] = File_Stream_next_byte(in_fs);
-            History_Buffer_add(history_buf, next3B[i-1]);
-        }
+    size_t block_size = 0, // current block size
+           lab_start = 0;  // look-ahead buffer start position
 
-        // if we are at the end of the file, we could have 2 or
-        // less characters, so we put them directly to the LZ_Queue
-        // as literals, and set the 'finished' flag to 'true'.
-        if (in_fs->is_finished || i < 3) {
-            for (size_t j = 0; j < i; j++) {
-                LZQ_ENQUEUE_LITERAL(lz_queue, next3B[j])
-                lit_count++;
+    Hash_Table lookup_table; // lookup table used for searching in the buffer
+
+    LZ_Queue lz_queue; // queue used for processing the LZ77 output
+
+    uint8_t next3B[3]; // next 3 bytes in the input file
+
+    while ((block_size = READ_BLOCK(cur_block,in_f)) > 0) {
+        LZ_Queue_init(&lz_queue);
+        Hash_Table_init(lookup_table);
+
+        lab_start = 0;
+        while (lab_start < block_size) {
+            size_t i = 0;
+            while (lab_start+i < block_size && i < 3) {
+                next3B[i] = cur_block[lab_start+i];
+                i++;
             }
 
-            finished = true;
-        }
-        else {
-            // in that case we have to process the current 3 bytes
-            // so we use the hash table to retrieve a linked list
-            // in which we can find the position of them in the history buffer
-            List chain = Hash_Table_get(h_table, next3B);
+            if (i < 3) {
+                // we are at the end of the block, so we put the last literals
+                // in the queue
+                for (size_t j = 0; j < i; j++) {
+                    LZQ_ENQUEUE_LITERAL(lz_queue,next3B[j]);
+                    lit_count++;
+                }
 
-            // if the chain is empty, the first byte is written in output
-            // thus the next three bytes sequence will be equal to the last
-            // sequence except the third byte that will be read from the file.
-            if (chain == NULL) {
-                LZQ_ENQUEUE_LITERAL(lz_queue, next3B[0])
-                lit_count++;
-
-                // put the sequence in the hash table
-                // last_buf_pos represent the position of the current 3 bytes sequence.
-                Hash_Table_put(h_table, next3B, last_buf_pos);
-
-                // skip the first byte and proceed with a new sequence
-                next_byte_start = 2;
-                SHIFT2B(next3B)
+                break;
             }
             else {
-                // max sequence distance/lenght & position
-                int    max_seq_length    =  0;
-                size_t max_seq_distance  = -1;
-                size_t max_buf_start_pos =  history_buf->next_pos;
+                List chain = Hash_Table_get(lookup_table, next3B);
 
-                // temporary buffer
-                uint8_t max_hist_buf[LZ_MAX_SEQ_LEN], tmp_hist_buf[LZ_MAX_SEQ_LEN];
-                size_t  max_hist_buf_len = 0, tmp_hist_buf_len = 0;
+                if (chain == NULL) {
+                    // the chain is empty, so we put the current three bytes
+                    // and their position in it
+                    Hash_Table_put(lookup_table, next3B, lab_start);
 
-                size_t  hb_last_pos      = history_buf->next_pos;
+                    // output the current byte and advances of one position
+                    LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
+                    lab_start++;
 
-                // save the currents file stream and history buffer contexts
-                File_Stream_Context_save(in_fs, &fs_init_context);
-                History_Buffer_Context_save(history_buf, &hb_init_context);
-
-                // find the longest occurence by trying with every position of the chain
-                while (chain != NULL) {
-                    // check if the three bytes are those which we are searching for
-                    size_t k = 0;
-                    size_t buf_start_pos = chain->value;
-
-                    while (k < 3) {
-                        uint8_t buf_byte = History_Buffer_get(history_buf,buf_start_pos+k);
-                        if (buf_byte != next3B[k]) break;
-                        else                       k++;
-                    }
-
-                    // if there is a match, it finds the length of the sequence
-                    if (k == 3) {
-                        tmp_hist_buf_len = 0;
-                        hb_last_pos = history_buf->next_pos;
-
-                        while (in_fs->n_available_bytes > 2 && k < LZ_MAX_SEQ_LEN) {
-                            // getting the next byte
-                            uint8_t next_byte = File_Stream_next_byte(in_fs);
-
-                            // updating the buffer with the new byte
-                            tmp_hist_buf[tmp_hist_buf_len++] = history_buf->buf[history_buf->next_pos];
-                            History_Buffer_add(history_buf, next_byte);
-
-                            // retrieving the current byte on the buffer
-                            uint8_t buf_byte = History_Buffer_get(history_buf,buf_start_pos+k);
-
-                            // if the new byte from the file isn't equal to the next byte
-                            // in the buffer, the sequence is terminated
-                            if (next_byte != buf_byte) break;
-                            else                       k++;
-                        }
-
-                        // check for the last two bytes before the file buffer gets reloaded
-                        if (in_fs->n_available_bytes <= 2) {
-                            size_t j = 0;
-                            while (j < in_fs->n_available_bytes) {
-                                uint8_t next_byte = in_fs->buffer[in_fs->buf_pos+j];
-
-                                tmp_hist_buf[tmp_hist_buf_len++] = history_buf->buf[history_buf->next_pos];
-                                History_Buffer_add(history_buf, next_byte);
-
-                                uint8_t buf_byte = History_Buffer_get(history_buf,buf_start_pos+k+j);
-
-                                if (next_byte != buf_byte) break;
-                                else                       j++;
-                            }
-
-                            k += j;
-                            in_fs->buf_pos           += j+1;
-                            in_fs->n_available_bytes -= j+1;
-                        }
-
-                        // if the current sequence is the longest
-                        if (k > max_seq_length) {
-                            max_seq_length    = k;
-                            max_seq_distance  = last_buf_pos - buf_start_pos;
-                            max_buf_start_pos = buf_start_pos + 3;
-
-                            // history buffer and file stream contexts save
-                            history_buf->next_pos--;
-                            History_Buffer_Context_save(history_buf, &hb_max_seq_context);
-                            File_Stream_Context_save(in_fs, &fs_max_seq_context);
-
-                            // save the bytes written in the history buffer
-                            max_hist_buf_len = k - 3;
-                            for (size_t j = 0; j < max_hist_buf_len; j++) {
-                                max_hist_buf[j] = history_buf->buf[(max_buf_start_pos + j) % HISTORY_BUFFER_SIZE];
-                            }
-                        }
-
-                        // restore the information of the file stream and the history buffer
-                        File_Stream_Context_restore(in_fs, &fs_init_context);
-                        History_Buffer_Context_restore(history_buf, &hb_init_context);
-
-                        // restore the history buffer content
-                        for (size_t j = 0; j < tmp_hist_buf_len; j++) {
-                            history_buf->buf[(hb_last_pos + j) % HISTORY_BUFFER_SIZE] = tmp_hist_buf[j];
-                        }
-                    }
-                    else {
-                        // this is not a valid occurrence because the first 3 bytes
-                        // are not equal to the currents that we already have.
-                    }
-
-                    // proceed to the next position
-                    chain = chain->next;
-                }
-
-                // if max_seq_pos is equal to -1, it means that the 3 current
-                // bytes hash is referred to a list of positions that doesn't
-                // contain them. That behaviour is caused by an hash collision
-                // or by a sequence that doesn't have the minimum length
-                // required by the LZ specs.
-                if (max_seq_distance == -1 || max_seq_length < LZ_MIN_SEQ_LEN) {
-                    LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0])
                     lit_count++;
-
-                    // skip the first byte and proceed with a new sequence
-                    next_byte_start = 2;
-                    SHIFT2B(next3B)
                 }
                 else {
-                    LZQ_ENQUEUE_PAIR(lz_queue, max_seq_distance, max_seq_length)
-                    pair_count++;
+                    size_t longest_match_length = 0,
+                           longest_match_pos = -1;
 
-                    // restore the information of the file stream
-                    in_fs->buf_pos           = fs_max_seq_context.buf_pos - 1;
-                    in_fs->n_available_bytes = fs_max_seq_context.n_available_bytes + 1;
-                    if (in_fs->n_available_bytes <= 0) {
-                        File_Stream_force_reload(in_fs);
+                    // go through the chain to find the longest match
+                    while (chain != NULL) {
+                        // position of the match in the search buffer
+                        size_t match_pos = chain->value;
+
+                        // length of the current occurrence
+                        size_t k = 0;
+
+                        // finds the length of the current occurrence
+                        while (lab_start + k < block_size     &&
+                                           k < LZ_MAX_SEQ_LEN &&
+                               cur_block[match_pos+k] == cur_block[lab_start+k]) {
+                            k++;
+                        }
+
+                        // if there is a match, checks if it's the longest
+                        if (k > longest_match_length) {
+                            longest_match_length = k;
+                            longest_match_pos = match_pos;
+                        }
+
+                        // process with the next match
+                        chain = chain->next;
                     }
 
-                    // restore the history buffer
-                    History_Buffer_Context_restore(history_buf, &hb_max_seq_context);
-                    for (size_t j = 0; j < max_hist_buf_len; j++) {
-                        history_buf->buf[(max_buf_start_pos + j) % HISTORY_BUFFER_SIZE] = max_hist_buf[j];
-                    }
+                    if (longest_match_length < LZ_MIN_SEQ_LEN) {
+                        // TODO: PERFORMANCE PROBLEM HERE!
+                        //Hash_Table_put(lookup_table, next3B, lab_start);
 
-                    // restore the start position of the next three bytes vector
-                    next_byte_start = 0;
+                        // output the current byte and advances of one position
+                        LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
+                        lab_start++;
+
+                        lit_count++;
+                    }
+                    else {
+                        LZQ_ENQUEUE_PAIR(lz_queue, lab_start - longest_match_pos,
+                                                   longest_match_length);
+                        pair_count++;
+
+                        lab_start += longest_match_length;
+
+                        /*
+                            PERFORMANCE PROBLEM HERE!
+                        // updates the lookup table with the bytes between the
+                        // look-ahead buffer init position and new look-ahead
+                        // buffer position
+                        size_t final_pos = lab_start + longest_match_length;
+                        while (lab_start < final_pos-2) {
+                            for (size_t i = 0; i < 3; i++) {
+                                next3B[i] = cur_block[lab_start+i];
+                            }
+                            Hash_Table_put(lookup_table, next3B, lab_start);
+                            lab_start++;
+                        }
+                        lab_start += 2;
+                        */
+                    }
                 }
             }
         }
+
+        LZ_decode_process_queue(&lz_queue, out_f);
+        LZ_Queue_destroy(&lz_queue);
+
+        Hash_Table_destroy(lookup_table);
     }
 
-    printf("STATS:\n");
-    printf("\tLiteral:    %lu\n", lit_count);
-    printf("\tD&L pair:   %lu\n", pair_count);
-    printf("\tTot Bytes: ~%lu\n", lit_count + pair_count*3);
-
-    // process and destroy the queue
-    LZ_decode_process_queue(&lz_queue, out_fp);
-    LZ_Queue_destroy(&lz_queue);
+    printf("\nSTATS\n");
+    printf("\tLIT COUNT:  %ld\n", lit_count);
+    printf("\tPAIR COUNT: %ld\n", pair_count);
+    printf("\tFINAL SIZE: %ld\n", lit_count+3*pair_count);
 
     // freeing memory
-    History_Buffer_destroy(history_buf);
-    File_Stream_destroy(in_fs);
-
-    // close output file
-    fclose(out_fp);
+    fclose(in_f);
+    fclose(out_f);
 }
