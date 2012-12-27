@@ -5,7 +5,7 @@
  */
 uint32_t Hash_Table_hash_key(Hash_Key key)
 {
-
+    /*
     uint32_t h, a = 31415, b = 27183;
 
     h = 0;
@@ -15,6 +15,9 @@ uint32_t Hash_Table_hash_key(Hash_Key key)
     }
 
     return h;
+*/
+    // multiplicative hashing
+    return (((uint32_t)(*key)&0xffffff)*0x6b43a9b5)>>19;
 }
 
 /**

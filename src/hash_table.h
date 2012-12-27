@@ -12,7 +12,7 @@
  * list of integer.
  */
 
-#define HASH_TABLE_SIZE 24593
+#define HASH_TABLE_SIZE 32768
 //3079
 //6151
 //12289

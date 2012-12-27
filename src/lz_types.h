@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define BUFFER_SIZE 32768
-
 typedef enum {_LZ_LITERAL, // literal value
               _LZ_PAIR}    // distance & length pair
         LZ_Type;

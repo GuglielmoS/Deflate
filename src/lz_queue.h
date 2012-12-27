@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "util.h"
 #include "lz_element.h"
 
 typedef LZ_Element* LZ_Queue_Value;

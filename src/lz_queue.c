@@ -5,8 +5,7 @@ LZ_Queue_Node* LZ_Queue_Node_new(LZ_Queue_Value value)
     LZ_Queue_Node *new_node = (LZ_Queue_Node*)malloc(sizeof(LZ_Queue_Node));
 
     if (new_node == NULL) {
-        fprintf(stderr, "[ERROR-LZ_Queue_Node_new] malloc failed!\n");
-        exit(EXIT_FAILURE);
+        die_error("[ERROR-LZ_Queue_Node_new] malloc failed!\n");
     }
     else {
         new_node->value = value;

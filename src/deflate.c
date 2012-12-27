@@ -1,7 +1,5 @@
 #include "deflate.h"
 
-//#define DEBUG
-
 /**
  * Decode the current queue and writes it out on the file related to f_out.
  * It assumes that f_out is a valid file pointer referred to a file open in
@@ -18,25 +16,16 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 
             if (LZE_IS_LITERAL(next_el)) {
                 uint8_t byte = LZE_GET_LITERAL(next_el);
+
                 tmp_buf[tmp_buf_pos++] = byte;
-
-#ifdef DEBUG
-                printf("%c", byte);
-#endif
-
                 WRITE_BYTE(f_out, byte);
             }
             else {
                 size_t init_pos = tmp_buf_pos - LZE_GET_DISTANCE(next_el);
-
-#ifdef DEBUG
-                printf("[D: %d, L: %d]", LZE_GET_DISTANCE(next_el), LZE_GET_LENGTH(next_el));
-#endif
-
                 for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
                     uint8_t byte = tmp_buf[init_pos + i];
-                    tmp_buf[tmp_buf_pos++] = byte;
 
+                    tmp_buf[tmp_buf_pos++] = byte;
                     WRITE_BYTE(f_out, byte);
                 }
             }
@@ -64,10 +53,8 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
         die_error("[ERROR-Deflate_encode] can't open/create the output file!\n");
     }
 
+    // current input data block
     uint8_t cur_block[INPUT_BLOCK_SIZE];
-
-    // for statistics
-    size_t lit_count = 0, pair_count = 0;
 
     size_t block_size = 0, // current block size
            lab_start = 0;  // look-ahead buffer start position
@@ -77,6 +64,9 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
     LZ_Queue lz_queue; // queue used for processing the LZ77 output
 
     uint8_t next3B[3]; // next 3 bytes in the input file
+
+    // for statistics
+    size_t lit_count = 0, pair_count = 0;
 
     while ((block_size = READ_BLOCK(cur_block,in_f)) > 0) {
         LZ_Queue_init(&lz_queue);
