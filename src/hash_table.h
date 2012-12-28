@@ -12,12 +12,18 @@
  * list of integer.
  */
 
-#define HASH_TABLE_SIZE 32768
+#define HASH_TABLE_SIZE 8192
 //3079
 //6151
 //12289
 
 #define HASH_TABLE_MAX_LIST_LEN 10
+
+// hash function
+#define GET_HASH(key) ((((uint32_t)(*key)&0xffffff)*0x6b43a9b5)>>19)
+
+/** USEFUL MACROS **/
+#define HTABLE_GET(ht,k) ht[GET_HASH(k)]
 
 typedef uint8_t Hash_Value;
 typedef uint8_t Hash_Key[3];

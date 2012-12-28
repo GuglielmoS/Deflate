@@ -21,6 +21,7 @@ void List_add(List *l, List_Value val)
     }
     else {
         List new_node = (List)malloc(sizeof(List_Node));
+
         new_node->value = val;
         new_node->next  = *l;
         *l = new_node;

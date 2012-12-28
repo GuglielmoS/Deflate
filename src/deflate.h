@@ -13,10 +13,29 @@
 #include "lz_element.h"
 #include "hash_table.h"
 
+// size of each block processed
 #define INPUT_BLOCK_SIZE 32768
 
+// min and max sequence length for the LZ77 algorithm
 #define LZ_MIN_SEQ_LEN 3
 #define LZ_MAX_SEQ_LEN 258
+
+/*** AUXILIARIES DATA STRUCTURES ***/
+
+// represents the structure used for storing data informations
+// along the process of encoding
+typedef struct {
+    uint32_t lit_count;  // number of literals
+    uint32_t pair_count; // number of pair
+    uint32_t freqs[255]; // literals frequencies
+} Statistics;
+
+// block types
+typedef enum {RAW_DATA,
+              STATIC_HUFFMAN,
+              DYNAMIC_HUFFMAN,
+              UNKNOWN}
+        Block_Type;
 
 /*** USEFUL MACROS ***/
 
