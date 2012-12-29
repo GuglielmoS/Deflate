@@ -1,47 +1,55 @@
 #include "list.h"
 
 /**
- * List constructor.
+ * Initialize the Limited_List 'l'.
  */
-void List_create(List *l, List_Value init_val)
+void Limited_List_init(Limited_List* l, size_t max_size)
 {
-    List tmp = (List)malloc(sizeof(List_Node));
-    if (tmp != NULL) {
-        tmp->value = init_val;
-        tmp->next  = NULL;
-    }
-
-    l = &tmp;
+    l->first = NULL;
+    l->last = NULL;
+    l->cur_size = 0;
+    l->max_size = max_size;
 }
 
-void List_add(List *l, List_Value val)
+/**
+ * Adds an element to 'l'.
+ */
+void Limited_List_add(Limited_List *l, List_Value value)
 {
-    if (l == NULL) {
-        List_create(l, val);
+    // if the list is full
+    if (l->cur_size == l->max_size) {
+        l->last->value = value;
     }
     else {
-        List new_node = (List)malloc(sizeof(List_Node));
+        List tmp_el = (List)malloc(sizeof(List_Node));
+        if (tmp_el == NULL) {
+            die_error("[ERROR-Limited_List_add] malloc failed!\n");
+        }
+        tmp_el->value = value;
+        tmp_el->next = NULL;
+        l->cur_size++;
 
-        new_node->value = val;
-        new_node->next  = *l;
-        *l = new_node;
+        if (l->first == NULL) {
+            l->first = tmp_el;
+            l->last = tmp_el;
+        }
+        else {
+            tmp_el->next = l->first;
+            l->first = tmp_el;
+        }
     }
 }
 
-void List_keep_only_last_n_values(List *l, size_t n)
+/**
+ * Deallocates the list identified by *l.
+ */
+void Limited_List_destroy(Limited_List *l)
 {
-    List tmp_ptr = *l;
-
-    size_t list_len = 0;
-    while (tmp_ptr->next != NULL && list_len < n) {
-        tmp_ptr = tmp_ptr->next;
-        list_len++;
-    }
-
-    if (list_len == n) {
-        List old_values_list = tmp_ptr->next;
-        List_destroy(&old_values_list);
-        tmp_ptr->next = NULL;
+    if (l != NULL) {
+        List_destroy(&(l->first));
+        l->cur_size = 0;
+        l->first = NULL;
+        l->last = NULL;
     }
 }
 

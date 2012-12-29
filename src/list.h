@@ -2,7 +2,8 @@
 #define __LIST__
 
 #include <stdlib.h>
-#include <stddef.h>
+
+#include "util.h"
 
 typedef size_t List_Value;
 
@@ -12,9 +13,16 @@ typedef struct __list_node {
 } List_Node;
 typedef List_Node* List;
 
-void List_create(List *l, List_Value init_val);
-void List_add(List *l, List_Value val);
-void List_keep_only_last_n_values(List *l, size_t n);
+typedef struct {
+    List first;         // pointer to the first element in the list
+    List last;          // pointer to the last element
+    size_t max_size;    // maximum number of elements
+    size_t cur_size;    // current number of elements
+} Limited_List;
+
+void Limited_List_init(Limited_List* l, size_t max_size);
+void Limited_List_add(Limited_List *l, List_Value value);
+void Limited_List_destroy(Limited_List *l);
 void List_destroy(List *l);
 
 #endif /* __LIST__ */

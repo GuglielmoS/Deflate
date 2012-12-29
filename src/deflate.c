@@ -66,6 +66,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
     // initialize the lookup table and the lz_queue
     LZ_Queue_init(&lz_queue);
     Hash_Table_init(lookup_table);
+
     while ((block_size = READ_BLOCK(cur_block,in_f)) > 0) {
         // for data statistics (frequencies, literals/pair count ...)
         Statistics stats = {0, 0, {0}};
@@ -154,7 +155,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
         }
 
         LZ_decode_process_queue(&lz_queue, out_f);
-        Hash_Table_destroy(lookup_table);
+        Hash_Table_reset(lookup_table);
     }
 
     fclose(in_f);
