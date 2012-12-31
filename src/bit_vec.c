@@ -8,12 +8,12 @@ Bit_Vec* Bit_Vec_create()
     Bit_Vec *bv = (Bit_Vec*)malloc(sizeof(Bit_Vec));
 
     if (bv == NULL) {
-        //die_error("[ERROR-Bit_Vec_create] malloc (1st) failed!\n");
+        die_error("[ERROR-Bit_Vec_create] malloc (1st) failed!\n");
     }
 
     bv->buf = (uint8_t*)malloc(BIT_VEC_INIT_BUF_SIZE);
     if (bv->buf == NULL) {
-        //die_error("[ERROR-Bit_Vec_create] malloc (2nd) failed!\n");
+        die_error("[ERROR-Bit_Vec_create] malloc (2nd) failed!\n");
     }
 
     bv->max_size = BIT_VEC_INIT_BUF_SIZE*8;
@@ -32,12 +32,12 @@ Bit_Vec* Bit_Vec_create_with_size(size_t init_size)
     Bit_Vec *bv = (Bit_Vec*)malloc(sizeof(Bit_Vec));
 
     if (bv == NULL) {
-        //die_error("[ERROR-Bit_Vec_create_with_size] malloc (1st) failed!\n");
+        die_error("[ERROR-Bit_Vec_create_with_size] malloc (1st) failed!\n");
     }
 
     bv->buf = (uint8_t*)malloc(init_size);
     if (bv->buf == NULL) {
-        //die_error("[ERROR-Bit_Vec_create_with_size] malloc (2nd) failed!\n");
+        die_error("[ERROR-Bit_Vec_create_with_size] malloc (2nd) failed!\n");
     }
 
     bv->max_size = init_size*8;
@@ -78,12 +78,12 @@ Bit_Vec* Bit_Vec_dup(Bit_Vec *bv)
     Bit_Vec *bv2 = (Bit_Vec*)malloc(sizeof(Bit_Vec));
 
     if (bv2 == NULL) {
-        //die_error("[ERROR-Bit_Vec_create_with_size] malloc (1st) failed!\n");
+        die_error("[ERROR-Bit_Vec_create_with_size] malloc (1st) failed!\n");
     }
 
     bv2->buf = (uint8_t*)malloc(bv->max_size/8);
     if (bv2->buf == NULL) {
-        //die_error("[ERROR-Bit_Vec_create_with_size] malloc (2nd) failed!\n");
+        die_error("[ERROR-Bit_Vec_create_with_size] malloc (2nd) failed!\n");
     }
 
     memcpy(bv2->buf,bv->buf,bv->max_size/8);
@@ -100,7 +100,7 @@ void Bit_Vec_grow_store(Bit_Vec *bv)
 {
     bv->buf = (uint8_t*)realloc(bv->buf, bv->max_size/4);
     if (bv->buf == NULL) {
-        //die_error("[ERROR-Bit_Vec_grow_store] realloc failed!\n");
+        die_error("[ERROR-Bit_Vec_grow_store] realloc failed!\n");
     }
 
     bv->max_size *= 2;

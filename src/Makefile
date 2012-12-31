@@ -23,5 +23,11 @@ list.o: list.c
 hash_table.o: hash_table.c list.o
 	$(CC) -c $<
 
+bit_vec.o: bit_vec.c util.o
+	$(CC) -c $<
+
+bit_stream.o: bit_stream.c bit_vec.o util.o
+	$(CC) -c $<
+
 clean:
 	rm -rf deflate *.o ../tests/output*

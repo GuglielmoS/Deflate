@@ -9,8 +9,13 @@
 
 #include "list.h"
 #include "util.h"
+
+#include "bit_vec.h"
+#include "bit_stream.h"
+
 #include "lz_queue.h"
 #include "lz_element.h"
+
 #include "hash_table.h"
 
 // size of each block processed

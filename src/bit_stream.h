@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "util.h"
 #include "bit_op.h"
 #include "bit_vec.h"
 

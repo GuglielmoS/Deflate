@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "util.h"
 #include "bit_op.h"
 
 /**

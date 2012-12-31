@@ -7,7 +7,7 @@ void Bit_Stream_init(Bit_Stream *bs, const char *file_name, const char *mode, si
 {
     bs->fd = fopen(file_name, mode);
     if (bs->fd == NULL) {
-        //die_error("[ERROR-Bit_Stream_init] fopen failed!\n");
+        die_error("[ERROR-Bit_Stream_init] fopen failed!\n");
     }
 
     bs->bits_buf = Bit_Vec_create_with_size(max_size);
