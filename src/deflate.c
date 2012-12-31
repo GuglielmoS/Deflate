@@ -131,7 +131,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                             longest_match_pos = match_pos;
                         }
 
-                        // process with the next match
+                        // proceed with the next match
                         chain = chain->next;
                     }
 
