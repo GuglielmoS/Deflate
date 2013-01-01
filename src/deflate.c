@@ -85,8 +85,9 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                 for (size_t j = 0; j < i; j++) {
                     LZQ_ENQUEUE_LITERAL(lz_queue,next3B[j]);
 
-                    stats.lit_count++;
-                    stats.freqs[next3B[j]]++;
+                    // updates the statistics
+                    STATS_INC_FREQ(stats, next3B[j]);
+                    STATS_INC_LIT(stats);
                 }
 
                 break;
@@ -99,12 +100,15 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                     // and their position in it
                     Hash_Table_put(lookup_table, next3B, lab_start);
 
-                    // output the current byte and advances of one position
+                    // outputs the current byte
                     LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
-                    lab_start++;
 
-                    stats.lit_count++;
-                    stats.freqs[next3B[0]]++;
+                    // updates the statistics
+                    STATS_INC_FREQ(stats, next3B[0]);
+                    STATS_INC_LIT(stats);
+
+                    // advances of one position
+                    lab_start++;
                 }
                 else {
                     size_t longest_match_length = 0,
@@ -139,16 +143,22 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                         // output the current byte and advances of one position
                         LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
 
+                        // updates the statistics
+                        STATS_INC_FREQ(stats, next3B[0]);
+                        STATS_INC_LIT(stats);
+
+                        // advances of one position
                         lab_start++;
-                        stats.lit_count++;
-                        stats.freqs[next3B[0]]++;
                     }
                     else {
                         LZQ_ENQUEUE_PAIR(lz_queue, lab_start - longest_match_pos,
                                                    longest_match_length);
 
+                        // updates the statistics
+                        STATS_INC_PAIR(stats);
+
+                        // advances of 'longest_match_length' position
                         lab_start += longest_match_length;
-                        stats.pair_count++;
                     }
                 }
             }
@@ -163,12 +173,12 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
 }
 
 /**
- * Process the LZ_Queue 'queue' and writes the output
- * on the file f_out.
- * f_out must be a valid file descriptor and must be
- * opened in binary writing mode.
+ * Process the LZ_Queue 'queue' and writes the output on the stream bs_out.
+ * bs_out must be a valid Bit_Stream open in binary write mode.
+ * By defult it performs a compression with static huffman, however if
+ * the statistics aren't good for this kind of method, it builds a new huffman
+ * codes table and uses it to compress the queue.
  */
-void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, FILE *f_out)
+void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_out)
 {
-
 }

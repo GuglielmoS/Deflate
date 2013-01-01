@@ -2,10 +2,10 @@ STD=c99
 OPT_LEVEL=3
 CC=gcc -Wall -std=$(STD) -O$(OPT_LEVEL)
 
-deflate: main.c deflate.o lz_element.o lz_queue.o hash_table.o util.o list.o
+deflate: main.c deflate.o lz_element.o lz_queue.o hash_table.o util.o list.o bit_stream.o bit_vec.o
 	$(CC) -o deflate $^
 
-deflate.o: deflate.c util.o lz_element.o lz_queue.o list.o hash_table.o
+deflate.o: deflate.c util.o lz_element.o lz_queue.o list.o hash_table.o bit_stream.o bit_vec.o
 	$(CC) -c $<
 
 util.o: util.c

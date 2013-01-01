@@ -50,6 +50,15 @@ typedef enum {RAW_DATA,
 // reads the next block from the file identified by 'fd'
 #define READ_BLOCK(block,fd) fread((uint8_t*)(block), sizeof(uint8_t), INPUT_BLOCK_SIZE, (fd))
 
+// increments the literal count of a statistics data structure
+#define STATS_INC_LIT(s) (s).lit_count++
+
+// increments the pair count of a statistics data structure
+#define STATS_INC_PAIR(s) (s).pair_count++
+
+// increments the symbol frequency of a statistics data structure
+#define STATS_INC_FREQ(s,sym) (s).freqs[(sym)]++
+
 /*** FUNCTIONS ***/
 void LZ_encode(const char *in_file_name, const char *out_file_name);
 void Deflate_encode(const char *in_file_name, const char *out_file_name);
