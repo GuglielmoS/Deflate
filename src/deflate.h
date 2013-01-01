@@ -47,6 +47,9 @@ typedef enum {RAW_DATA,
 // writes a byte (uint8_t) on the file 'fp'
 #define WRITE_BYTE(fp,b) fwrite((uint8_t*)&b, sizeof(uint8_t), 1, fp)
 
+// writes 's' bytes from 'b' to 'fp' 
+#define WRITE_BYTES(fp,b,s) fwrite((uint8_t*)&b,sizeof(uint8_t),s,fp)
+
 // reads the next block from the file identified by 'fd'
 #define READ_BLOCK(block,fd) fread((uint8_t*)(block), sizeof(uint8_t), INPUT_BLOCK_SIZE, (fd))
 

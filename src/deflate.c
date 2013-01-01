@@ -7,28 +7,25 @@
  */
 void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 {
-    uint8_t tmp_buf[INPUT_BLOCK_SIZE];
-    size_t tmp_buf_pos = 0;
+    uint8_t buf[INPUT_BLOCK_SIZE];
+    size_t  buf_size = 0;
 
     while (!LZQ_IS_EMPTY(queue)) {
         LZ_Element *next_el = LZQ_DEQUEUE(queue);
 
         if (LZE_IS_LITERAL(next_el)) {
-            uint8_t byte = LZE_GET_LITERAL(next_el);
-
-            tmp_buf[tmp_buf_pos++] = byte;
-            WRITE_BYTE(f_out, byte);
+            buf[buf_size++] = LZE_GET_LITERAL(next_el);
         }
         else {
-            size_t init_pos = tmp_buf_pos - LZE_GET_DISTANCE(next_el);
+            size_t init_pos = buf_size - LZE_GET_DISTANCE(next_el);
             for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
-                uint8_t byte = tmp_buf[init_pos + i];
-
-                tmp_buf[tmp_buf_pos++] = byte;
-                WRITE_BYTE(f_out, byte);
+                buf[buf_size++] = buf[init_pos + i];
             }
         }
     }
+
+    // writes the decoded buffer on the file
+    WRITE_BYTES(f_out, buf, buf_size);
 }
 
 /**
@@ -143,6 +140,9 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                         // output the current byte and advances of one position
                         LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
 
+                        // updates the lookup table with the current three bytes
+                        Hash_Table_put(lookup_table, next3B, lab_start);
+
                         // updates the statistics
                         STATS_INC_FREQ(stats, next3B[0]);
                         STATS_INC_LIT(stats);
@@ -154,11 +154,22 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                         LZQ_ENQUEUE_PAIR(lz_queue, lab_start - longest_match_pos,
                                                    longest_match_length);
 
+                        // updates the lookup table with the bytes between the
+                        // look-ahead buffer init position and the new look-ahead
+                        // buffer position
+                        size_t final_pos = lab_start + longest_match_length;
+                        while (lab_start < final_pos-2) {
+                            for (size_t i = 0; i < 3; i++) {
+                                next3B[i] = cur_block[lab_start+i];
+                            }
+                            Hash_Table_put(lookup_table, next3B, lab_start);
+                            lab_start++;
+
+                        }
+                        lab_start += 2;
+
                         // updates the statistics
                         STATS_INC_PAIR(stats);
-
-                        // advances of 'longest_match_length' position
-                        lab_start += longest_match_length;
                     }
                 }
             }
