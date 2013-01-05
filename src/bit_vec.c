@@ -136,6 +136,16 @@ void Bit_Vec_add_byte(Bit_Vec *bv, uint8_t byte)
 }
 
 /**
+ * Adds the least significant 'n_bits' bits from the byte 'byte' to the Bit_Vec 'bv'.
+ */
+void Bit_Vec_add_n_ls_bits_from_byte(Bit_Vec *bv, uint16_t byte, uint8_t n_bits)
+{
+    for (int i = n_bits-1; i >= 0; i--) {
+        Bit_Vec_add_bit(bv, BYTE_BIT_GET(byte,i));
+    }
+}
+
+/**
  * Adds 'size' bytes to the Bit_Vec 'bv'.
  */
 void Bit_Vec_add_bytes(Bit_Vec *bv, uint8_t *bytes, size_t size)
@@ -159,6 +169,16 @@ void Bit_Vec_add_bytes(Bit_Vec *bv, uint8_t *bytes, size_t size)
 void Bit_Vec_add_word(Bit_Vec *bv, uint16_t word)
 {
     for (int i = 15; i >= 0; i--) {
+        Bit_Vec_add_bit(bv, WORD_BIT_GET(word,i));
+    }
+}
+
+/**
+ * Adds the least significant 'n_bits' bits from the word 'word' to the Bit_Vec 'bv'.
+ */
+void Bit_Vec_add_n_ls_bits_from_word(Bit_Vec *bv, uint16_t word, uint8_t n_bits)
+{
+    for (int i = n_bits-1; i >= 0; i--) {
         Bit_Vec_add_bit(bv, WORD_BIT_GET(word,i));
     }
 }

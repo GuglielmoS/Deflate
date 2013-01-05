@@ -35,8 +35,10 @@ Bit_Vec* Bit_Vec_create_with_word(uint16_t word);
 // add
 void Bit_Vec_add_bit(Bit_Vec *bv, uint8_t bit);
 void Bit_Vec_add_byte(Bit_Vec *bv, uint8_t byte);
+void Bit_Vec_add_n_ls_bits_from_byte(Bit_Vec *bv, uint16_t byte, uint8_t n_bits);
 void Bit_Vec_add_bytes(Bit_Vec *bv, uint8_t *bytes, size_t size);
 void Bit_Vec_add_word(Bit_Vec *bv, uint16_t word);
+void Bit_Vec_add_n_ls_bits_from_word(Bit_Vec *bv, uint16_t word, uint8_t n_bits);
 
 // get
 uint8_t Bit_Vec_get_bit(Bit_Vec *bv, size_t bit_pos);
