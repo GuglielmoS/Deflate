@@ -47,15 +47,38 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
     // processes the LZ queue
     while (!LZQ_IS_EMPTY(queue)) {
         LZ_Element *next_el = LZQ_DEQUEUE(queue);
+        Bit_Vec *tmp_code = Bit_Vec_create();
 
         if (LZE_IS_LITERAL(next_el)) {
-            Bit_Stream_add_n_bit(bs_out, Huffman_get_literal_code(LZE_GET_LITERAL(next_el)));
+            Huffman_get_literal_code(LZE_GET_LITERAL(next_el), tmp_code);
+            Bit_Stream_add_n_bit(bs_out, tmp_code);
+
+            Bit_Vec_destroy(tmp_code);
+            free(tmp_code);
         }
         else {
-            Bit_Stream_add_n_bit(bs_out, Huffman_get_length_code(LZE_GET_LENGTH(next_el)));
-            Bit_Stream_add_n_bit(bs_out, Huffman_get_distance_code(LZE_GET_DISTANCE(next_el)));
+            Huffman_get_length_code(LZE_GET_LENGTH(next_el), tmp_code);
+            Bit_Stream_add_n_bit(bs_out, tmp_code);
+
+            Bit_Vec_destroy(tmp_code);
+            free(tmp_code);
+
+            tmp_code = Bit_Vec_create();
+            Huffman_get_distance_code(LZE_GET_DISTANCE(next_el), tmp_code);
+            Bit_Stream_add_n_bit(bs_out, tmp_code);
+
+            Bit_Vec_destroy(tmp_code);
+            free(tmp_code);
         }
     }
+
+    // adds the end of block (edoc 256 => 000 0000)
+    Bit_Vec *sep_code = Bit_Vec_create();
+    Huffman_get_end_block_separator(sep_code);
+    Bit_Stream_add_n_bit(bs_out, sep_code);
+
+    Bit_Vec_destroy(sep_code);
+    free(sep_code);
 
     // if it's the last block, it forces the write process on the file
     if (last_block) {
