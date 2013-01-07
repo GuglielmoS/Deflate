@@ -29,11 +29,47 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 }
 
 /**
+ * Process the LZ_Queue 'queue' and writes the output on the stream bs_out.
+ * bs_out must be a valid Bit_Stream open in binary write mode.
+ * By defult it performs a compression with static huffman, however if
+ * the statistics aren't good for this kind of method, it builds a new huffman
+ * codes table and uses it to compress the queue.
+ */
+void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_out, bool last_block)
+{
+    // if is the last block, puts a '1' bit, '0' otherwise
+    Bit_Stream_add_bit(bs_out, (last_block == true));
+
+    // puts the other two bits which state the type of block
+    Bit_Stream_add_bit(bs_out, 0); // STATIC
+    Bit_Stream_add_bit(bs_out, 1); // HUFFMAN
+
+    // processes the LZ queue
+    while (!LZQ_IS_EMPTY(queue)) {
+        LZ_Element *next_el = LZQ_DEQUEUE(queue);
+
+        if (LZE_IS_LITERAL(next_el)) {
+            Bit_Stream_add_n_bit(bs_out, Huffman_get_literal_code(LZE_GET_LITERAL(next_el)));
+        }
+        else {
+            Bit_Stream_add_n_bit(bs_out, Huffman_get_length_code(LZE_GET_LENGTH(next_el)));
+            Bit_Stream_add_n_bit(bs_out, Huffman_get_distance_code(LZE_GET_DISTANCE(next_el)));
+        }
+    }
+
+    // if it's the last block, it forces the write process on the file
+    if (last_block) {
+        Bit_Stream_force_write(bs_out);
+        Bit_Stream_write_padding_bits(bs_out);
+    }
+}
+
+/**
  * Compress the content of the file identified by 'in_file_name' by applying
  * the deflate algorithm defined in the RFC1950.
  * The output will be written to the file 'out_file_name'.
  */
-void Deflate_encode(const char *in_file_name, const char *out_file_name)
+void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate_Params *params)
 {
     FILE *in_f = fopen(in_file_name, "rb");
 
@@ -42,11 +78,9 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
         die_error("[ERROR-Deflate_encode] can't open the input file!\n");
     }
 
-    FILE *out_f = fopen(out_file_name, "wb");
-    if (out_f == NULL) {
-        fclose(in_f);
-        die_error("[ERROR-Deflate_encode] can't open/create the output file!\n");
-    }
+    // output bits stream
+    Bit_Stream out_s;
+    Bit_Stream_init(&out_s, out_file_name, "wb", OUTPUT_BLOCK_SIZE);
 
     // current input data block
     uint8_t cur_block[INPUT_BLOCK_SIZE];
@@ -60,6 +94,8 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
 
     uint8_t next3B[3]; // next 3 bytes in the input file
 
+    bool last_block = false; // states if we are at the last block
+
     // initialize the lookup table and the lz_queue
     LZ_Queue_init(&lz_queue);
     Hash_Table_init(lookup_table);
@@ -67,6 +103,9 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
     while ((block_size = READ_BLOCK(cur_block,in_f)) > 0) {
         // for data statistics (frequencies, literals/pair count ...)
         Statistics stats = {0, 0, {0}};
+
+        if (block_size < INPUT_BLOCK_SIZE)
+            last_block = true;
 
         lab_start = 0;
         while (lab_start < block_size) {
@@ -140,8 +179,10 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                         // output the current byte and advances of one position
                         LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
 
-                        // updates the lookup table with the current three bytes
-                        Hash_Table_put(lookup_table, next3B, lab_start);
+                        if (!params->fast) {
+                            // updates the lookup table with the current three bytes
+                            Hash_Table_put(lookup_table, next3B, lab_start);
+                        }
 
                         // updates the statistics
                         STATS_INC_FREQ(stats, next3B[0]);
@@ -154,19 +195,24 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
                         LZQ_ENQUEUE_PAIR(lz_queue, lab_start - longest_match_pos,
                                                    longest_match_length);
 
-                        // updates the lookup table with the bytes between the
-                        // look-ahead buffer init position and the new look-ahead
-                        // buffer position
-                        size_t final_pos = lab_start + longest_match_length;
-                        while (lab_start < final_pos-2) {
-                            for (size_t i = 0; i < 3; i++) {
-                                next3B[i] = cur_block[lab_start+i];
-                            }
-                            Hash_Table_put(lookup_table, next3B, lab_start);
-                            lab_start++;
+                        if (!params->fast) {
+                            // updates the lookup table with the bytes between the
+                            // look-ahead buffer init position and the new look-ahead
+                            // buffer position
+                            size_t final_pos = lab_start + longest_match_length;
+                            while (lab_start < final_pos-2) {
+                                for (size_t i = 0; i < 3; i++) {
+                                    next3B[i] = cur_block[lab_start+i];
+                                }
+                                Hash_Table_put(lookup_table, next3B, lab_start);
+                                lab_start++;
 
+                            }
+                            lab_start += 2;
                         }
-                        lab_start += 2;
+                        else {
+                            lab_start += longest_match_length;
+                        }
 
                         // updates the statistics
                         STATS_INC_PAIR(stats);
@@ -175,21 +221,11 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name)
             }
         }
 
-        LZ_decode_process_queue(&lz_queue, out_f);
+        //LZ_decode_process_queue(&lz_queue, out_f);
+        Deflate_process_queue(&lz_queue, &stats, &out_s, last_block);
         Hash_Table_reset(lookup_table);
     }
 
     fclose(in_f);
-    fclose(out_f);
-}
-
-/**
- * Process the LZ_Queue 'queue' and writes the output on the stream bs_out.
- * bs_out must be a valid Bit_Stream open in binary write mode.
- * By defult it performs a compression with static huffman, however if
- * the statistics aren't good for this kind of method, it builds a new huffman
- * codes table and uses it to compress the queue.
- */
-void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_out)
-{
+    Bit_Stream_close(&out_s);
 }

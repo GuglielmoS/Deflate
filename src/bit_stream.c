@@ -94,6 +94,16 @@ void Bit_Stream_add_word(Bit_Stream *bs, uint16_t word)
 }
 
 /**
+ * Adds the Bit_Vec 'bv' ot the Bit_Stream 'bs'.
+ */
+void Bit_Stream_add_n_bit(Bit_Stream *bs, Bit_Vec *bv)
+{
+    for (size_t i = 0; i < bv->cur_size; i++) {
+        Bit_Stream_add_bit(bs, Bit_Vec_get_bit(bv, i));
+    }
+}
+
+/**
  * Writes the bits buffer on the file and sets the field
  * remained_bits to the number of bits added as padding at the end
  * of the file.

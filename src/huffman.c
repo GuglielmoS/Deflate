@@ -16,7 +16,16 @@ uint8_t get_edoc_length(uint16_t edoc)
     else                  return edoc_length[3];
 }
 
-Bit_Vec *get_length_code(uint16_t length)
+Bit_Vec *Huffman_get_literal_code(uint8_t literal)
+{
+    Bit_Vec *code = Bit_Vec_create();
+
+    Bit_Vec_add_n_ls_bits_from_word(code, literal, get_edoc_length(literal));
+
+    return code;
+}
+
+Bit_Vec *Huffman_get_length_code(uint16_t length)
 {
     size_t i = 0;
     while (lens[i] < length) i++; // FIND LENGTH POS
@@ -33,7 +42,7 @@ Bit_Vec *get_length_code(uint16_t length)
     return code;
 }
 
-Bit_Vec *get_distance_code(uint16_t distance)
+Bit_Vec *Huffman_get_distance_code(uint16_t distance)
 {
     size_t i = 0;
     while (dists[i] < distance) i++; // FIND DISTANCE POS

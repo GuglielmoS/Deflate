@@ -32,7 +32,8 @@ static const uint16_t edoc_init_values[4] = {
 static const uint8_t  edoc_length[4] = {
     8, 9, 7, 8};
 
-Bit_Vec *get_length_code(uint16_t length);
-Bit_Vec *get_distance_code(uint16_t distance);
+Bit_Vec *Huffman_get_literal_code(uint8_t literal);
+Bit_Vec *Huffman_get_length_code(uint16_t length);
+Bit_Vec *Huffman_get_distance_code(uint16_t distance);
 
 #endif /* __HUFFMAN__ */

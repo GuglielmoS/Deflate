@@ -7,19 +7,21 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "list.h"
 #include "util.h"
-
+#include "list.h"
 #include "bit_vec.h"
 #include "bit_stream.h"
-
 #include "lz_queue.h"
 #include "lz_element.h"
-
 #include "hash_table.h"
+#include "huffman.h"
 
 // size of each block processed
 #define INPUT_BLOCK_SIZE 32768
+
+// maxmimum size of a temporary block
+// when the Bit_Stream is used
+#define OUTPUT_BLOCK_SIZE 8192
 
 // min and max sequence length for the LZ77 algorithm
 #define LZ_MIN_SEQ_LEN 3
@@ -35,12 +37,10 @@ typedef struct {
     uint32_t freqs[255]; // literals frequencies
 } Statistics;
 
-// block types
-typedef enum {RAW_DATA,
-              STATIC_HUFFMAN,
-              DYNAMIC_HUFFMAN,
-              UNKNOWN}
-        Block_Type;
+// for handling the paramaters of compression/decompression
+typedef struct {
+    bool fast;
+} Deflate_Params;
 
 /*** USEFUL MACROS ***/
 
@@ -49,6 +49,8 @@ typedef enum {RAW_DATA,
 
 // writes 's' bytes from 'b' to 'fp' 
 #define WRITE_BYTES(fp,b,s) fwrite((uint8_t*)&b,sizeof(uint8_t),s,fp)
+
+// writes the block header
 
 // reads the next block from the file identified by 'fd'
 #define READ_BLOCK(block,fd) fread((uint8_t*)(block), sizeof(uint8_t), INPUT_BLOCK_SIZE, (fd))
@@ -63,8 +65,6 @@ typedef enum {RAW_DATA,
 #define STATS_INC_FREQ(s,sym) (s).freqs[(sym)]++
 
 /*** FUNCTIONS ***/
-void LZ_encode(const char *in_file_name, const char *out_file_name);
-void Deflate_encode(const char *in_file_name, const char *out_file_name);
-void Deflate_encode(const char *in_file_name, const char *out_file_name);
+void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate_Params *params);
 
 #endif /* __DEFLATE__ */

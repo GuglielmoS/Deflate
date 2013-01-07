@@ -45,6 +45,7 @@ void Bit_Stream_read_n_padding_bits(Bit_Stream *bs);
 void Bit_Stream_add_bit(Bit_Stream *bs, uint8_t value);
 void Bit_Stream_add_byte(Bit_Stream *bs, uint8_t byte);
 void Bit_Stream_add_word(Bit_Stream *bs, uint16_t word);
+void Bit_Stream_add_n_bit(Bit_Stream *bs, Bit_Vec *bv);
 
 // get (reading)
 uint8_t Bit_Stream_get_bit(Bit_Stream *bs);
