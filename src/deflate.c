@@ -1,5 +1,6 @@
 #include "deflate.h"
 
+
 /**
  * Decode the current queue and writes it out on the file related to f_out.
  * It assumes that f_out is a valid file descriptor referred to a file opened in
@@ -16,8 +17,20 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 
         if (LZE_IS_LITERAL(next_el)) {
             buf[buf_size++] = LZE_GET_LITERAL(next_el);
+
+#ifdef DEBUG
+            printf("%c", LZE_GET_LITERAL(next_el));
+#endif
         }
         else {
+ #ifdef DEBUG
+            printf("[L: %d, D: %d]", LZE_GET_LENGTH(next_el), LZE_GET_DISTANCE(next_el));
+#endif
+
+            if (LZE_GET_DISTANCE(next_el) > buf_size) {
+                printf("%d\n", LZE_GET_DISTANCE(next_el));
+            }
+
             size_t init_pos = buf_size - LZE_GET_DISTANCE(next_el);
             for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
                 buf[buf_size++] = buf[init_pos + i];
@@ -50,6 +63,12 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
     Bit_Vec *tmp_code = NULL;
     LZ_Element *next_el = NULL;
 
+#ifdef DEBUG
+    printf("%d | %d%d |\n\n", Bit_Vec_get_bit(bs_out->bits_buf,0),
+                              Bit_Vec_get_bit(bs_out->bits_buf,1),
+                              Bit_Vec_get_bit(bs_out->bits_buf,2));
+#endif
+
     // processes the LZ queue
     while (!LZQ_IS_EMPTY(queue)) {
         next_el = LZQ_DEQUEUE(queue);
@@ -58,6 +77,14 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
         if (LZE_IS_LITERAL(next_el)) {
             Huffman_get_literal_code(LZE_GET_LITERAL(next_el), tmp_code);
             Bit_Stream_add_n_bit(bs_out, tmp_code);
+
+#ifdef DEBUG
+            printf("%c -> ", LZE_GET_LITERAL(next_el));
+            for (int i = 0; i < tmp_code->cur_size; i++) {
+                printf("%d", Bit_Vec_get_bit(tmp_code, i));
+            }
+            putchar('\n');
+#endif
 
             Bit_Vec_destroy(tmp_code);
             free(tmp_code);
@@ -97,7 +124,7 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
 
 /**
  * Compress the content of the file identified by 'in_file_name' by applying
- * the deflate algorithm defined in the RFC1950.
+ * the deflate algorithm defined in the RFC1951.
  * The output will be written to the file 'out_file_name'.
  */
 void Deflate_encode(Deflate_Params *params)
@@ -142,7 +169,7 @@ void Deflate_encode(Deflate_Params *params)
     // processes the blocks
     while ((block_size = READ_BLOCK(cur_block,in_f)) > 0) {
         // for data statistics (frequencies, literals/pair count ...)
-        Statistics stats = {0, 0, {0}};
+        //Statistics stats = {0, 0, {0}};
 
         if (block_size < INPUT_BLOCK_SIZE)
             last_block = true;
@@ -162,8 +189,8 @@ void Deflate_encode(Deflate_Params *params)
                     LZQ_ENQUEUE_LITERAL(lz_queue,next3B[j]);
 
                     // updates the statistics
-                    STATS_INC_FREQ(stats, next3B[j]);
-                    STATS_INC_LIT(stats);
+                    //STATS_INC_FREQ(stats, next3B[j]);
+                    //STATS_INC_LIT(stats);
                 }
 
                 break;
@@ -174,15 +201,14 @@ void Deflate_encode(Deflate_Params *params)
                 if (chain == NULL) {
                     // the chain is empty, so we put the current three bytes
                     // and their position in it
-                    //Hash_Table_put(lookup_table, next3B, lab_start);
                     HTABLE_PUT(lookup_table, next3B, lab_start);
 
                     // outputs the current byte
                     LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
 
                     // updates the statistics
-                    STATS_INC_FREQ(stats, next3B[0]);
-                    STATS_INC_LIT(stats);
+                    //STATS_INC_FREQ(stats, next3B[0]);
+                    //STATS_INC_LIT(stats);
 
                     // advances of one position
                     lab_start++;
@@ -222,13 +248,12 @@ void Deflate_encode(Deflate_Params *params)
 
                         if (params->fast == false) {
                             // updates the lookup table with the current three bytes
-                            //Hash_Table_put(lookup_table, next3B, lab_start);
                             HTABLE_PUT(lookup_table, next3B, lab_start);
                         }
 
                         // updates the statistics
-                        STATS_INC_FREQ(stats, next3B[0]);
-                        STATS_INC_LIT(stats);
+                        //STATS_INC_FREQ(stats, next3B[0]);
+                        //STATS_INC_LIT(stats);
 
                         // advances of one position
                         lab_start++;
@@ -257,13 +282,14 @@ void Deflate_encode(Deflate_Params *params)
                         }
 
                         // updates the statistics
-                        STATS_INC_PAIR(stats);
+                        //STATS_INC_PAIR(stats);
                     }
                 }
             }
         }
 
-        Deflate_process_queue(&lz_queue, &stats, &out_s, last_block);
+        // processes the current queue
+        Deflate_process_queue(&lz_queue, NULL, &out_s, last_block);
         Hash_Table_reset(lookup_table);
     }
 
@@ -273,4 +299,116 @@ void Deflate_encode(Deflate_Params *params)
 
     Bit_Stream_destroy(&out_s);
     Bit_Stream_close(&out_s);
+}
+
+/**
+ * Decompresses the file identified by params->in_file_name to a new
+ * file named params->out_file_name.
+ */
+void Deflate_decode(Deflate_Params *params)
+{
+    Bit_Stream in_s;
+    Bit_Stream_init(&in_s, params->in_file_name, "rb", INPUT_BLOCK_SIZE);
+
+    FILE *f_out = fopen(params->out_file_name, "wb");
+    if (f_out == NULL) {
+        die_error("[ERROR-Deflate_decode] can't open output file!\n");
+    }
+
+    LZ_Queue lz_queue;
+    LZ_Queue_init(&lz_queue);
+
+    bool last_block = false;
+
+    while (!Bit_Stream_finished(&in_s)) {
+
+        last_block = Bit_Stream_get_bit(&in_s);
+        Bit_Stream_get_bit(&in_s); // BLOCK
+        Bit_Stream_get_bit(&in_s); // TYPE
+
+        bool block_finished = false;
+        while (!block_finished) {
+            uint8_t init_code = 0x00;
+            for (int i = 0; i < 7; i++) {
+                if (Bit_Stream_get_bit(&in_s)) {
+                    init_code = BYTE_BIT_SET(init_code, 6-i);
+                }
+            }
+
+            uint16_t final_code = init_code;
+            int n_extra_bits = Huffman_get_decode_extra_bits(init_code);
+            for (int i = 0; i < n_extra_bits; i++) {
+                final_code <<= 1;
+                if (Bit_Stream_get_bit(&in_s)) {
+                    final_code = WORD_BIT_SET(final_code, 0);
+                }
+            }
+
+            uint16_t edoc = final_code - Huffman_get_decode_offset(init_code);
+
+            if (init_code <= 23) edoc += 256;
+            else if (init_code <= 95) edoc += 0;
+            else if (init_code <= 99) edoc += 280;
+            else edoc += 144;
+
+            if (edoc == 256) {
+#ifdef DEBUG
+                printf("BLOCK FINISHED!\n");
+#endif
+                block_finished = true;
+            }
+            else if (edoc <= 255) {
+#ifdef DEBUG
+                printf("-> '%c'\n\n", edoc);
+#endif
+                LZQ_ENQUEUE_LITERAL(lz_queue,edoc);
+            }
+            else {
+#ifdef DEBUG
+                printf("LENGTH & PAIR TO PROCESS\n");
+#endif
+
+                uint8_t extra_bits = 0x00;
+                uint8_t len_pos = edoc - 257;
+                for (int i = 0; i < lext[len_pos]; i++) {
+                    extra_bits <<= 1;
+                    if (Bit_Stream_get_bit(&in_s)) {
+                        extra_bits = BYTE_BIT_SET(extra_bits, 0);
+                    }
+                }
+                uint16_t length = lens[len_pos]+extra_bits;
+#ifdef DEBUG
+                printf("-> L: %d, ", length);
+#endif
+
+                uint8_t d_pos = 0x00;
+                for (int i = 0; i < 5; i++) {
+                    if (Bit_Stream_get_bit(&in_s)) {
+                        d_pos = BYTE_BIT_SET(d_pos, 4-i);
+                    }
+                }
+
+                extra_bits = 0x00;
+                for (int i = 0; i < dext[d_pos]; i++) {
+                    extra_bits <<= 1;
+                    if (Bit_Stream_get_bit(&in_s)) {
+                        extra_bits = BYTE_BIT_SET(extra_bits, 0);
+                    }
+                }
+
+                uint16_t distance = dists[d_pos] + extra_bits;
+#ifdef DEBUG
+                printf("D: %d\n", distance);
+#endif
+                LZQ_ENQUEUE_PAIR(lz_queue,distance,length);
+            }
+        }
+
+        LZ_decode_process_queue(&lz_queue, f_out);
+    }
+
+    fclose(f_out);
+
+    Bit_Stream_close(&in_s);
+    Bit_Stream_destroy(&in_s);
 }

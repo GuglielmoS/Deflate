@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
         Deflate_encode(&params);
     }
     else {
-        die_exit(argv[0]);
+        Deflate_decode(&params);
     }
 
     return 0;
