@@ -39,6 +39,9 @@ typedef struct {
 
 // for handling the paramaters of compression/decompression
 typedef struct {
+    const char *in_file_name;
+    const char *out_file_name;
+
     bool fast;
 } Deflate_Params;
 
@@ -65,6 +68,6 @@ typedef struct {
 #define STATS_INC_FREQ(s,sym) (s).freqs[(sym)]++
 
 /*** FUNCTIONS ***/
-void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate_Params *params);
+void Deflate_encode(Deflate_Params *params);
 
 #endif /* __DEFLATE__ */

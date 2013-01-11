@@ -138,6 +138,8 @@ void Bit_Stream_force_write(Bit_Stream *bs)
 void Bit_Stream_buffer_reset(Bit_Stream *bs)
 {
     Bit_Vec_destroy(bs->bits_buf);
+    free(bs->bits_buf);
+
     bs->bits_buf = Bit_Vec_create();
 }
 
@@ -267,4 +269,16 @@ bool Bit_Stream_finished(Bit_Stream *bs)
 {
     return ((bs->cur_pos == bs->bits_buf->cur_size && bs->last_chunk) ||
             bs->file_finished);
+}
+
+void Bit_Stream_destroy(Bit_Stream *bs)
+{
+    if (bs->fd) {
+        fclose(bs->fd);
+    }
+
+    if (bs->bits_buf) {
+        Bit_Vec_destroy(bs->bits_buf);
+        free(bs->bits_buf);
+    }
 }

@@ -22,6 +22,8 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
                 buf[buf_size++] = buf[init_pos + i];
             }
         }
+
+        free(next_el);
     }
 
     // writes the decoded buffer on the file
@@ -70,6 +72,8 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
             Bit_Vec_destroy(tmp_code);
             free(tmp_code);
         }
+
+        free(next_el);
     }
 
     // adds the end of block (edoc 256 => 000 0000)
@@ -92,9 +96,9 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
  * the deflate algorithm defined in the RFC1950.
  * The output will be written to the file 'out_file_name'.
  */
-void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate_Params *params)
+void Deflate_encode(Deflate_Params *params)
 {
-    FILE *in_f = fopen(in_file_name, "rb");
+    FILE *in_f = fopen(params->in_file_name, "rb");
 
     // open the file to compress
     if (in_f == NULL) {
@@ -103,7 +107,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate
 
     // output bits stream
     Bit_Stream out_s;
-    Bit_Stream_init(&out_s, out_file_name, "wb", OUTPUT_BLOCK_SIZE);
+    Bit_Stream_init(&out_s, params->out_file_name, "wb", OUTPUT_BLOCK_SIZE);
 
     // current input data block
     uint8_t cur_block[INPUT_BLOCK_SIZE];
@@ -123,6 +127,7 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate
     LZ_Queue_init(&lz_queue);
     Hash_Table_init(lookup_table);
 
+    // processes the blocks
     while ((block_size = READ_BLOCK(cur_block,in_f)) > 0) {
         // for data statistics (frequencies, literals/pair count ...)
         Statistics stats = {0, 0, {0}};
@@ -202,10 +207,10 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate
                         // output the current byte and advances of one position
                         LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
 
-                        if (!params->fast) {
+                        /*if (params->fast == false) {
                             // updates the lookup table with the current three bytes
                             Hash_Table_put(lookup_table, next3B, lab_start);
-                        }
+                        }*/
 
                         // updates the statistics
                         STATS_INC_FREQ(stats, next3B[0]);
@@ -217,8 +222,8 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate
                     else {
                         LZQ_ENQUEUE_PAIR(lz_queue, lab_start - longest_match_pos,
                                                    longest_match_length);
-
-                        if (!params->fast) {
+                        /*
+                        if (params->fast == false) {
                             // updates the lookup table with the bytes between the
                             // look-ahead buffer init position and the new look-ahead
                             // buffer position
@@ -234,8 +239,9 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate
                             lab_start += 2;
                         }
                         else {
-                            lab_start += longest_match_length;
-                        }
+                        */
+                        lab_start += longest_match_length;
+                        //}
 
                         // updates the statistics
                         STATS_INC_PAIR(stats);
@@ -244,11 +250,11 @@ void Deflate_encode(const char *in_file_name, const char *out_file_name, Deflate
             }
         }
 
-        //LZ_decode_process_queue(&lz_queue, out_f);
         Deflate_process_queue(&lz_queue, &stats, &out_s, last_block);
         Hash_Table_reset(lookup_table);
     }
 
     fclose(in_f);
+    Bit_Stream_destroy(&out_s);
     Bit_Stream_close(&out_s);
 }

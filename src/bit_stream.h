@@ -65,6 +65,7 @@ void Bit_Stream_write_padding_bits(Bit_Stream *bs);
 
 // close
 void Bit_Stream_close(Bit_Stream *bs);
+void Bit_Stream_destroy(Bit_Stream *bs);
 
 // util
 bool Bit_Stream_finished(Bit_Stream *bs);

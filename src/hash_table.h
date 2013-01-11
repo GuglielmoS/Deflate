@@ -14,7 +14,7 @@
 
 #define HASH_TABLE_SIZE 8192
 
-#define HASH_TABLE_MAX_LIST_LEN 10
+#define HASH_TABLE_MAX_LIST_LEN 20
 
 // hash function
 #define GET_HASH(key) ((((uint32_t)(*key)&0xffffff)*0x6b43a9b5)>>19)
