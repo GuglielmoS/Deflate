@@ -22,7 +22,10 @@ LZ_Element* LZ_Element_new()
 LZ_Element* LZ_Pair_new(LZ_Pair pair)
 {
     LZ_Element *e = LZ_Element_new();
-    LZ_Element_set_pair(e, pair);
+    //LZ_Element_set_pair(e, pair);
+    e->type = _LZ_PAIR;
+    e->value.p.distance = pair.distance;
+    e->value.p.length   = pair.length;
 
     return e;
 }
@@ -34,7 +37,9 @@ LZ_Element* LZ_Pair_new(LZ_Pair pair)
 LZ_Element* LZ_Literal_new(LZ_Literal literal)
 {
     LZ_Element *e = LZ_Element_new();
-    LZ_Element_set_literal(e, literal);
+    //LZ_Element_set_literal(e, literal);
+    e->type = _LZ_LITERAL;
+    e->value.l = literal;
 
     return e;
 }

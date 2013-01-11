@@ -10,8 +10,9 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
     size_t buf_size = 0;
     uint8_t buf[INPUT_BLOCK_SIZE];
 
+    LZ_Element *next_el = NULL;
     while (!LZQ_IS_EMPTY(queue)) {
-        LZ_Element *next_el = LZQ_DEQUEUE(queue);
+        next_el = LZQ_DEQUEUE(queue);
 
         if (LZE_IS_LITERAL(next_el)) {
             buf[buf_size++] = LZE_GET_LITERAL(next_el);
@@ -46,10 +47,13 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
     Bit_Stream_add_bit(bs_out, 0); // STATIC
     Bit_Stream_add_bit(bs_out, 1); // HUFFMAN
 
+    Bit_Vec *tmp_code = NULL;
+    LZ_Element *next_el = NULL;
+
     // processes the LZ queue
     while (!LZQ_IS_EMPTY(queue)) {
-        LZ_Element *next_el = LZQ_DEQUEUE(queue);
-        Bit_Vec *tmp_code = Bit_Vec_create();
+        next_el = LZQ_DEQUEUE(queue);
+        tmp_code = Bit_Vec_create();
 
         if (LZE_IS_LITERAL(next_el)) {
             Huffman_get_literal_code(LZE_GET_LITERAL(next_el), tmp_code);
@@ -216,11 +220,11 @@ void Deflate_encode(Deflate_Params *params)
                         // output the current byte and advances of one position
                         LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
 
-                        /*if (params->fast == false) {
+                        if (params->fast == false) {
                             // updates the lookup table with the current three bytes
                             //Hash_Table_put(lookup_table, next3B, lab_start);
                             HTABLE_PUT(lookup_table, next3B, lab_start);
-                        }*/
+                        }
 
                         // updates the statistics
                         STATS_INC_FREQ(stats, next3B[0]);
@@ -232,7 +236,7 @@ void Deflate_encode(Deflate_Params *params)
                     else {
                         LZQ_ENQUEUE_PAIR(lz_queue, lab_start - longest_match_pos,
                                                    longest_match_length);
-                        /*
+
                         if (params->fast == false) {
                             // updates the lookup table with the bytes between the
                             // look-ahead buffer init position and the new look-ahead
@@ -242,17 +246,15 @@ void Deflate_encode(Deflate_Params *params)
                                 for (size_t i = 0; i < 3; i++) {
                                     next3B[i] = cur_block[lab_start+i];
                                 }
-                                //Hash_Table_put(lookup_table, next3B, lab_start);
+
                                 HTABLE_PUT(lookup_table, next3B, lab_start);
                                 lab_start++;
-
                             }
                             lab_start += 2;
                         }
                         else {
-                        */
-                        lab_start += longest_match_length;
-                        //}
+                            lab_start += longest_match_length;
+                        }
 
                         // updates the statistics
                         STATS_INC_PAIR(stats);
@@ -261,10 +263,8 @@ void Deflate_encode(Deflate_Params *params)
             }
         }
 
-        LZ_decode_process_queue(&lz_queue, out_s.fd);
-        //Deflate_process_queue(&lz_queue, &stats, &out_s, last_block);
+        Deflate_process_queue(&lz_queue, &stats, &out_s, last_block);
         Hash_Table_reset(lookup_table);
-        LZ_Queue_destroy(&lz_queue);
     }
 
     free(lookup_table);
