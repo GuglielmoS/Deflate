@@ -19,7 +19,7 @@ LZ_Element* LZ_Element_new()
  * Allocates and returns a new pair LZ_Element which
  * has as value 'pair'.
  */
-LZ_Element* LZ_Pair_new(LZ_Pair pair) 
+LZ_Element* LZ_Pair_new(LZ_Pair pair)
 {
     LZ_Element *e = LZ_Element_new();
     LZ_Element_set_pair(e, pair);

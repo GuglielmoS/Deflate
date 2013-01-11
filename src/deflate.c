@@ -7,8 +7,8 @@
  */
 void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 {
+    size_t buf_size = 0;
     uint8_t buf[INPUT_BLOCK_SIZE];
-    size_t  buf_size = 0;
 
     while (!LZQ_IS_EMPTY(queue)) {
         LZ_Element *next_el = LZQ_DEQUEUE(queue);
@@ -110,12 +110,20 @@ void Deflate_encode(Deflate_Params *params)
     Bit_Stream_init(&out_s, params->out_file_name, "wb", OUTPUT_BLOCK_SIZE);
 
     // current input data block
-    uint8_t cur_block[INPUT_BLOCK_SIZE];
+    uint8_t *cur_block = (uint8_t*)malloc(INPUT_BLOCK_SIZE*sizeof(uint8_t));
+    if (cur_block == NULL) {
+        die_error("[ERROR-Deflate_encode] failed malloc!\n");
+    }
 
     size_t block_size = 0, // current block size
            lab_start = 0;  // look-ahead buffer start position
 
     Hash_Table lookup_table; // lookup table used for searching in the buffer
+
+    lookup_table = (Limited_List*)malloc(HASH_TABLE_SIZE*sizeof(Limited_List));
+    if (lookup_table == NULL) {
+        die_error("[ERROR-Deflate_encode] failed malloc!\n");
+    }
 
     LZ_Queue lz_queue; // queue used for processing the LZ77 output
 
@@ -162,7 +170,8 @@ void Deflate_encode(Deflate_Params *params)
                 if (chain == NULL) {
                     // the chain is empty, so we put the current three bytes
                     // and their position in it
-                    Hash_Table_put(lookup_table, next3B, lab_start);
+                    //Hash_Table_put(lookup_table, next3B, lab_start);
+                    HTABLE_PUT(lookup_table, next3B, lab_start);
 
                     // outputs the current byte
                     LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
@@ -209,7 +218,8 @@ void Deflate_encode(Deflate_Params *params)
 
                         /*if (params->fast == false) {
                             // updates the lookup table with the current three bytes
-                            Hash_Table_put(lookup_table, next3B, lab_start);
+                            //Hash_Table_put(lookup_table, next3B, lab_start);
+                            HTABLE_PUT(lookup_table, next3B, lab_start);
                         }*/
 
                         // updates the statistics
@@ -232,7 +242,8 @@ void Deflate_encode(Deflate_Params *params)
                                 for (size_t i = 0; i < 3; i++) {
                                     next3B[i] = cur_block[lab_start+i];
                                 }
-                                Hash_Table_put(lookup_table, next3B, lab_start);
+                                //Hash_Table_put(lookup_table, next3B, lab_start);
+                                HTABLE_PUT(lookup_table, next3B, lab_start);
                                 lab_start++;
 
                             }
@@ -250,11 +261,16 @@ void Deflate_encode(Deflate_Params *params)
             }
         }
 
-        Deflate_process_queue(&lz_queue, &stats, &out_s, last_block);
+        LZ_decode_process_queue(&lz_queue, out_s.fd);
+        //Deflate_process_queue(&lz_queue, &stats, &out_s, last_block);
         Hash_Table_reset(lookup_table);
+        LZ_Queue_destroy(&lz_queue);
     }
 
+    free(lookup_table);
+    free(cur_block);
     fclose(in_f);
+
     Bit_Stream_destroy(&out_s);
     Bit_Stream_close(&out_s);
 }

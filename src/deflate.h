@@ -41,8 +41,6 @@ typedef struct {
 typedef struct {
     const char *in_file_name;
     const char *out_file_name;
-
-    bool fast;
 } Deflate_Params;
 
 /*** USEFUL MACROS ***/

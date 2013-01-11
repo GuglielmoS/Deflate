@@ -47,16 +47,20 @@ void LZ_Queue_enqueue(LZ_Queue *q, LZ_Queue_Value value)
 LZ_Queue_Value LZ_Queue_dequeue(LZ_Queue *q)
 {
     LZ_Queue_Value removed_value;
+
     if (q->head == q->tail) {
         if (q->head != NULL) {
             removed_value = q->head->value;
+            free(q->head);
             q->head = NULL;
             q->tail = q->head;
         }
     }
     else {
         removed_value = q->head->value;
-        q->head = q->head->next;
+        LZ_Queue_Node *tmp = q->head->next;
+        free(q->head);
+        q->head = tmp;
     }
 
     return removed_value;

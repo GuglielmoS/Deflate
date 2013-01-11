@@ -20,12 +20,13 @@
 #define GET_HASH(key) ((((uint32_t)(*key)&0xffffff)*0x6b43a9b5)>>19)
 
 /** USEFUL MACROS **/
-#define HTABLE_GET(ht,k) ht[GET_HASH(k)].first
+#define HTABLE_GET(ht,k)   ht[GET_HASH(k)].first
+#define HTABLE_PUT(ht,k,v) Limited_List_add(&(ht)[GET_HASH(k)], (v))
 
 typedef uint8_t Hash_Value;
 typedef uint8_t Hash_Key[3];
 
-typedef Limited_List Hash_Table[HASH_TABLE_SIZE];
+typedef Limited_List* Hash_Table;
 
 /** Helpers **/
 void Hash_Table_init(Hash_Table ht);

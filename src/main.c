@@ -10,7 +10,6 @@ void die_exit(const char *exec_file_name)
     fprintf(stderr, "Usage: %s [-d|-f] -i <input_file> [-o <output_file>]\n", exec_file_name);
     fprintf(stderr, "\t c: compress 'input_file' to 'output_file'\n");
     fprintf(stderr, "\t d: decompress 'input_file' to 'output_file'\n");
-    fprintf(stderr, "\t f: compress in fast mode 'input_file' to 'output_file'\n");
     exit(EXIT_FAILURE);
 }
 
@@ -19,7 +18,6 @@ int main(int argc, char *argv[])
     Deflate_Params params; // fast = true
     bool compress = true;
 
-    params.fast = false;
     params.in_file_name = NULL;
     params.out_file_name = NULL;
 
@@ -31,9 +29,6 @@ int main(int argc, char *argv[])
                 break;
             case 'd':
                 compress = false;
-                break;
-            case 'f':
-                params.fast = true;
                 break;
             case 'i':
                 params.in_file_name = optarg;
