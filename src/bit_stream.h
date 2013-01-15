@@ -21,12 +21,12 @@ typedef struct {
     uint8_t padding_bits;   // number of bits written as padding
                             // at the end of the last write
 
-    size_t max_buf_size;    // maximum size of the temporary buffer in bytes
+    uint32_t max_buf_size;  // maximum size of the temporary buffer in bytes
                             // (that is when will be called the read/write function)
 
-    uint32_t cur_pos;        // current position in the bits buffer (used while reading)
+    uint32_t cur_pos;       // current position in the bits buffer (used while reading)
 
-    uint32_t bytes_processed; // number of bytes processed
+    uint32_t processed_bytes; // number of bytes processed
     uint32_t file_size;       // size of the file in bytes
 
     bool file_finished; // true if there aren't more data to read

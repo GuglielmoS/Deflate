@@ -21,7 +21,7 @@
 
 // maxmimum size of a temporary block
 // when the Bit_Stream is used
-#define OUTPUT_BLOCK_SIZE 8192
+#define OUTPUT_BLOCK_SIZE 32768
 
 // min and max sequence length for the LZ77 algorithm
 #define LZ_MIN_SEQ_LEN 3

@@ -53,7 +53,7 @@ LZ_Queue_Value LZ_Queue_dequeue(LZ_Queue *q)
             removed_value = q->head->value;
             free(q->head);
             q->head = NULL;
-            q->tail = q->head;
+            q->tail = NULL;
         }
     }
     else {

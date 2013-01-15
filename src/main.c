@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     }
 
     if (params.out_file_name == NULL) {
-        params.out_file_name = strcat(strdup(params.in_file_name), ".zipped");
+        params.out_file_name = strcat(strdup(params.in_file_name), ".dzip");
     }
 
     if (compress) {
