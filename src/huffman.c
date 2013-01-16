@@ -45,25 +45,3 @@ void Huffman_get_distance_code(uint16_t distance, Bit_Vec *bv)
     Bit_Vec_add_n_ls_bits_from_word(bv, i, 5);
     Bit_Vec_add_n_ls_bits_from_word(bv, distance - dists[i], dext[i]);
 }
-
-uint8_t Huffman_get_decode_extra_bits(uint8_t code)
-{
-    if      (code <= 23) return 0;
-    else if (code <= 95) return 1;
-    else if (code <= 99) return 1;
-    else                 return 2;
-}
-
-uint8_t Huffman_get_decode_offset(uint8_t code)
-{
-    if      (code <= 23) return edoc_init_values[2];
-    else if (code <= 95) return edoc_init_values[0];
-    else if (code <= 99) return edoc_init_values[3];
-    else                 return edoc_init_values[1];
-}
-
-uint16_t Huffman_get_literal_from_code(uint16_t code)
-{
-    return code - Huffman_get_decode_offset(code);
-}
-

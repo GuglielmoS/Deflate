@@ -10,11 +10,14 @@
 void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 {
     size_t buf_size = 0;
+
+    // allocates a temporary buffer
     uint8_t *buf = (uint8_t*)malloc(sizeof(uint8_t)*INPUT_BLOCK_SIZE);
     if (buf == NULL) {
         die_error("[ERROR-LZ_decode_process_queue] malloc failed!\n");
     }
 
+    // processes the queue
     LZ_Element *next_el = NULL;
     while (!LZQ_IS_EMPTY(queue)) {
         next_el = LZQ_DEQUEUE(queue);
@@ -29,7 +32,8 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
                 getchar();
             }
 #endif
-            size_t init_pos = buf_size - LZE_GET_DISTANCE(next_el);
+            size_t init_pos  = buf_size - LZE_GET_DISTANCE(next_el),
+                   final_pos = init_pos + LZE_GET_LENGTH(next_el);
 
 #ifdef DEBUG
             if (LZE_GET_LENGTH(next_el) + init_pos >= INPUT_BLOCK_SIZE) {
@@ -38,12 +42,12 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
             }
 #endif
 
-            for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
-                buf[buf_size++] = buf[init_pos + i];
+            for (size_t i = init_pos; i <= final_pos; i++) {
+                buf[buf_size++] = buf[i];
             }
         }
 
-        // realese the processed element
+        // free the processed element
         free(next_el);
     }
 
@@ -57,11 +61,10 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 /**
  * Process the LZ_Queue 'queue' and writes the output on the stream bs_out.
  * bs_out must be a valid Bit_Stream open in binary write mode.
- * By defult it performs a compression with static huffman, however if
- * the statistics aren't good for this kind of method, it builds a new huffman
- * codes table and uses it to compress the queue.
- */
-void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_out, bool last_block)
+ *
+ * By defult it performs a compression with static huffman.
+ * */
+void Deflate_process_queue(LZ_Queue *queue, Bit_Stream *bs_out, bool last_block)
 {
     // if is the last block, puts a '1' bit, '0' otherwise
     Bit_Stream_add_bit(bs_out, (last_block == true));
@@ -83,14 +86,12 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
             for (int i = 0; i < BIT_VEC_SIZE(tmp_code); i++) {
                 Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(tmp_code,i));
             }
-            //Bit_Stream_add_n_bit(bs_out, tmp_code);
         }
         else {
             Huffman_get_length_code(LZE_GET_LENGTH(next_el), tmp_code);
             for (int i = 0; i < BIT_VEC_SIZE(tmp_code); i++) {
                 Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(tmp_code,i));
             }
-            //Bit_Stream_add_n_bit(bs_out, tmp_code);
 
             Bit_Vec_destroy(tmp_code);
             free(tmp_code);
@@ -100,7 +101,6 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
             for (int i = 0; i < BIT_VEC_SIZE(tmp_code); i++) {
                 Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(tmp_code,i));
             }
-            //Bit_Stream_add_n_bit(bs_out, tmp_code);
         }
 
         Bit_Vec_destroy(tmp_code);
@@ -136,7 +136,7 @@ void Deflate_decode(Deflate_Params *params)
         die_error("[ERROR-Deflate_decode] can't open output file!\n");
     }
 
-    // initializes the queue for the LZ_Element
+    // initializes the queue for the LZ_Elements
     LZ_Queue lz_queue;
     LZ_Queue_init(&lz_queue);
 
@@ -144,11 +144,11 @@ void Deflate_decode(Deflate_Params *params)
     bool last_block_processed = false,
          block_finished = false;
 
-    // continues until the last block in the file is processed 
+    // continues until the last block in the file is processed
     while (!last_block_processed) {
 
-        // read the first bit of the block which states
-        // if we have to process the last block in the file or no
+        // reads the first bit of the block which states
+        // if we have to process the last block in the file or not
         last_block_processed = Bit_Stream_get_bit(&in_s);
 
         // reads the block type
@@ -158,7 +158,7 @@ void Deflate_decode(Deflate_Params *params)
         if (Bit_Stream_get_bit(&in_s))
             block_type |= 0x01;
 
-        // processes the block util it finds he block separator sequence
+        // processes the block util it finds the block separator sequence
         // BLOCK SEPARATOR = 0000000
 
         // static huffman decoding
@@ -189,8 +189,8 @@ void Deflate_decode(Deflate_Params *params)
                 int edoc = 0;
                 if      (cur_code <= 23)  edoc = cur_code + 256;
                 else if (cur_code <= 191) edoc = cur_code - 48;
-                else if (cur_code <= 199) edoc = cur_code + 88;  //- 192 + 280;
-                else                      edoc = cur_code - 256; //- 400 + 144;
+                else if (cur_code <= 199) edoc = cur_code + 88;  // - 192 + 280;
+                else                      edoc = cur_code - 256; // - 400 + 144;
 
                 if (edoc == 256) {
                     block_finished = true;
@@ -201,8 +201,8 @@ void Deflate_decode(Deflate_Params *params)
                 else {
                     // length extra bits
                     uint8_t  l_extra_bits = 0x00;
-                    uint16_t len_pos = edoc - 257;
-                    for (int i = 0; i < lext[len_pos]; i++) {
+                    uint16_t l_pos = edoc - 257;
+                    for (int i = 0; i < lext[l_pos]; i++) {
                         l_extra_bits <<= 1;
                         if (Bit_Stream_get_bit(&in_s)) {
                             l_extra_bits |= 0x01;
@@ -228,7 +228,7 @@ void Deflate_decode(Deflate_Params *params)
                     }
 
                     LZQ_ENQUEUE_PAIR(&lz_queue, dists[d_pos]  + d_extra_bits,
-                                                lens[len_pos] + l_extra_bits);
+                                                lens[l_pos] + l_extra_bits);
                 }
             }
         }
@@ -242,7 +242,7 @@ void Deflate_decode(Deflate_Params *params)
 }
 
 /**
- * Compress the content of the file identified by 'in_file_name' by applying
+ * Compresses the content of the file identified by 'in_file_name' by applying
  * the deflate algorithm defined in the RFC1951.
  * The output will be written to the file 'out_file_name'.
  */
@@ -258,7 +258,6 @@ void Deflate_encode(Deflate_Params *params)
     // output bits stream
     Bit_Stream out_s;
     Bit_Stream_init(&out_s, params->out_file_name, "wb", 4096);
-    //FILE *out_f = fopen(params->out_file_name, "wb");
 
     // current input data block
     uint8_t *cur_block = (uint8_t*)malloc(INPUT_BLOCK_SIZE*sizeof(uint8_t));
@@ -300,16 +299,16 @@ void Deflate_encode(Deflate_Params *params)
             }
 
             if (i < 3) {
-                // we are at the end of the block, so we put the last literals
+                // we are at the end of the block, thus we put the last literals
                 // in the queue
                 for (size_t j = 0; j < i; j++) {
-                    LZQ_ENQUEUE_LITERAL(&lz_queue,next3B[j]);
+                    LZQ_ENQUEUE_LITERAL(&lz_queue, next3B[j]);
                 }
 
                 break;
             }
             else {
-                List chain = HTABLE_GET(lookup_table,next3B);
+                List chain = HTABLE_GET(lookup_table, next3B);
 
                 if (chain == NULL) {
                     // the chain is empty, so we put the current three bytes
@@ -317,7 +316,7 @@ void Deflate_encode(Deflate_Params *params)
                     HTABLE_PUT(lookup_table, next3B, lab_start);
 
                     // outputs the current byte
-                    LZQ_ENQUEUE_LITERAL(&lz_queue,next3B[0]);
+                    LZQ_ENQUEUE_LITERAL(&lz_queue, next3B[0]);
 
                     // advances of one position
                     lab_start++;
@@ -326,7 +325,7 @@ void Deflate_encode(Deflate_Params *params)
                     size_t longest_match_length = 0,
                            longest_match_pos = -1;
 
-                    // go through the chain to find the longest match
+                    // goes through the chain to find the longest match
                     while (chain != NULL) {
                         // position of the match in the search buffer
                         size_t match_pos = chain->value;
@@ -343,17 +342,18 @@ void Deflate_encode(Deflate_Params *params)
 
                         // if there is a match, checks if it's the longest
                         if (k > longest_match_length) {
+                            longest_match_pos    = match_pos;
                             longest_match_length = k;
-                            longest_match_pos = match_pos;
                         }
 
-                        // proceed with the next match
+                        // proceeds with the next match
                         chain = chain->next;
                     }
 
+                    // if the sequence isn't long enough
                     if (longest_match_length < LZ_MIN_SEQ_LEN) {
-                        // output the current byte and advances of one position
-                        LZQ_ENQUEUE_LITERAL(&lz_queue,next3B[0]);
+                        // outputs the current byte
+                        LZQ_ENQUEUE_LITERAL(&lz_queue, next3B[0]);
 
                         if (params->fast == false) {
                             // updates the lookup table with the current three bytes
@@ -364,6 +364,7 @@ void Deflate_encode(Deflate_Params *params)
                         lab_start++;
                     }
                     else {
+                        // outputs the current LENGTH/DISTANCE pair
                         LZQ_ENQUEUE_PAIR(&lz_queue, lab_start - longest_match_pos,
                                                     longest_match_length);
 
@@ -372,7 +373,7 @@ void Deflate_encode(Deflate_Params *params)
                             // look-ahead buffer init position and the new look-ahead
                             // buffer position
                             size_t final_pos = lab_start + longest_match_length;
-                            while (lab_start < final_pos-2) {
+                            while (lab_start < final_pos - 2) {
                                 for (size_t i = 0; i < 3; i++) {
                                     next3B[i] = cur_block[lab_start+i];
                                 }
@@ -391,8 +392,7 @@ void Deflate_encode(Deflate_Params *params)
         }
 
         // processes the current queue
-        Deflate_process_queue(&lz_queue, NULL, &out_s, last_block);
-        //LZ_decode_process_queue(&lz_queue, out_f);
+        Deflate_process_queue(&lz_queue, &out_s, last_block);
         Hash_Table_reset(lookup_table);
     }
 

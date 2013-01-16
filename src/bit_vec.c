@@ -150,18 +150,9 @@ void Bit_Vec_add_n_ls_bits_from_byte(Bit_Vec *bv, uint16_t byte, uint8_t n_bits)
  */
 void Bit_Vec_add_bytes(Bit_Vec *bv, uint8_t *bytes, size_t size)
 {
-    /*if (bv->cur_size % 8 == 0 &&
-        bv->max_size - bv->cur_size >= size) {
-
-        memcpy(bv->buf + (bv->cur_size/8), bytes, size);
-        bv->cur_size += size*8;
+    for (size_t i = 0; i < size; i++) {
+        Bit_Vec_add_byte(bv, bytes[i]);
     }
-    else {
-    */
-        for (size_t i = 0; i < size; i++) {
-            Bit_Vec_add_byte(bv, bytes[i]);
-        }
-    //}
 }
 
 /**

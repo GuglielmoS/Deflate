@@ -27,17 +27,10 @@
 #define LZ_MIN_SEQ_LEN 3
 #define LZ_MAX_SEQ_LEN 258
 
+// value of STATIC HUFFMAN BLOCK'S 2-BIT HEADER
 #define STATIC_HUFFMAN_TYPE 1
 
 /*** AUXILIARIES DATA STRUCTURES ***/
-
-// represents the structure used for storing data informations
-// along the process of encoding
-typedef struct {
-    uint32_t lit_count;  // number of literals
-    uint32_t pair_count; // number of pair
-    uint32_t freqs[255]; // literals frequencies
-} Statistics;
 
 // for handling the paramaters of compression/decompression
 typedef struct {
@@ -53,8 +46,6 @@ typedef struct {
 
 // writes 's' bytes from 'b' to 'fp'
 #define WRITE_BYTES(fp,b,s) fwrite((uint8_t*)b,sizeof(uint8_t),s,fp)
-
-// writes the block header
 
 // reads the next block from the file identified by 'fd'
 #define READ_BLOCK(block,fd) fread((uint8_t*)(block), sizeof(uint8_t), INPUT_BLOCK_SIZE, (fd))
