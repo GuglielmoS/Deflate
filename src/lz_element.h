@@ -16,7 +16,6 @@
  * or a literal.
  */
 typedef struct __lz_element {
-    // attributes
     LZ_Value value;
     LZ_Type  type;
 } LZ_Element;

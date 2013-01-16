@@ -32,8 +32,8 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
                 getchar();
             }
 #endif
-            size_t init_pos  = buf_size - LZE_GET_DISTANCE(next_el),
-                   final_pos = init_pos + LZE_GET_LENGTH(next_el);
+
+            size_t init_pos  = buf_size - LZE_GET_DISTANCE(next_el);
 
 #ifdef DEBUG
             if (LZE_GET_LENGTH(next_el) + init_pos >= INPUT_BLOCK_SIZE) {
@@ -42,8 +42,8 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
             }
 #endif
 
-            for (size_t i = init_pos; i <= final_pos; i++) {
-                buf[buf_size++] = buf[i];
+            for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
+                buf[buf_size++] = buf[init_pos + i];
             }
         }
 
@@ -228,7 +228,7 @@ void Deflate_decode(Deflate_Params *params)
                     }
 
                     LZQ_ENQUEUE_PAIR(&lz_queue, dists[d_pos]  + d_extra_bits,
-                                                lens[l_pos] + l_extra_bits);
+                                                lens[l_pos]   + l_extra_bits);
                 }
             }
         }
