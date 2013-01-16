@@ -37,9 +37,4 @@ void Huffman_get_literal_code(uint8_t literal, Bit_Vec *bv);
 void Huffman_get_length_code(uint16_t length, Bit_Vec *bv);
 void Huffman_get_distance_code(uint16_t distance, Bit_Vec *bv);
 
-// TODO: testing
-uint8_t Huffman_get_decode_extra_bits(uint8_t code);
-uint8_t Huffman_get_decode_offset(uint8_t code);
-uint16_t Huffman_get_literal_from_code(uint16_t code);
-
 #endif /* __HUFFMAN__ */

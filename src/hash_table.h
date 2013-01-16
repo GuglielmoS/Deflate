@@ -14,6 +14,7 @@
 
 #define HASH_TABLE_SIZE 8192
 
+// maximum size of a list
 #define HASH_TABLE_MAX_LIST_LEN 20
 
 // hash function

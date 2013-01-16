@@ -6,7 +6,6 @@
 void Limited_List_init(Limited_List* l, size_t max_size)
 {
     l->first = NULL;
-    l->last = NULL;
     l->cur_size = 0;
     l->max_size = max_size;
 }
@@ -50,7 +49,6 @@ void Limited_List_destroy(Limited_List *l)
     List_destroy(&(l->first));
     l->cur_size = 0;
     l->first = NULL;
-    l->last = NULL;
 }
 
 void List_destroy(List *l)

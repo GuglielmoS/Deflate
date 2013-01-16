@@ -15,7 +15,6 @@ typedef List_Node* List;
 
 typedef struct {
     List first;         // pointer to the first element in the list
-    List last;          // pointer to the last element
     size_t max_size;    // maximum number of elements
     size_t cur_size;    // current number of elements
 } Limited_List;

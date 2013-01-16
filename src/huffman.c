@@ -33,9 +33,7 @@ void Huffman_get_length_code(uint16_t length, Bit_Vec *bv)
     if (lens[i] != length) i--;
 
     Bit_Vec_add_n_ls_bits_from_word(bv, get_prefix_code(257 + i), get_edoc_length(257 + i));
-    if (lext[i] > 0) {
-        Bit_Vec_add_n_ls_bits_from_word(bv, length - lens[i], lext[i]);
-    }
+    Bit_Vec_add_n_ls_bits_from_word(bv, length - lens[i], lext[i]);
 }
 
 void Huffman_get_distance_code(uint16_t distance, Bit_Vec *bv)
@@ -45,9 +43,7 @@ void Huffman_get_distance_code(uint16_t distance, Bit_Vec *bv)
     if (dists[i] != distance) i--;
 
     Bit_Vec_add_n_ls_bits_from_word(bv, i, 5);
-    if (dext[i] > 0) {
-        Bit_Vec_add_n_ls_bits_from_word(bv, distance - dists[i], dext[i]);
-    }
+    Bit_Vec_add_n_ls_bits_from_word(bv, distance - dists[i], dext[i]);
 }
 
 uint8_t Huffman_get_decode_extra_bits(uint8_t code)

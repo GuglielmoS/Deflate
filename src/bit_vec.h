@@ -23,8 +23,9 @@ typedef struct {
 #define BIT_VEC_INIT_BUF_SIZE 1
 
 // useful macros
-#define BIT_VEC_SIZE(bv)    ((bv)->cur_size)
-#define BIT_VEC_IS_FULL(bv) ((bv)->cur_size == (bv)->max_size)
+#define BIT_VEC_SIZE(bv)      ((bv)->cur_size)
+#define BIT_VEC_IS_FULL(bv)   ((bv)->cur_size == (bv)->max_size)
+#define BIT_VEC_GET_BIT(bv,p) (BYTE_BIT_GET((bv)->buf[(p)/8],7-(p)%8))
 
 // create
 Bit_Vec* Bit_Vec_create();

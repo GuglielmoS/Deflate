@@ -22,7 +22,6 @@ void Bit_Stream_init(Bit_Stream *bs, const char *file_name, const char *mode, si
     if (strcmp(mode, "rb") == 0) {
         bs->processed_bytes = 0;
         Bit_Stream_read_n_padding_bits(bs);
-        //Bit_Stream_read_next_chunk(bs);
     }
     else {
         bs->padding_bits = 0;
@@ -97,7 +96,7 @@ void Bit_Stream_add_word(Bit_Stream *bs, uint16_t word)
 void Bit_Stream_add_n_bit(Bit_Stream *bs, Bit_Vec *bv)
 {
     for (size_t i = 0; i < BIT_VEC_SIZE(bv); i++) {
-        Bit_Stream_add_bit(bs, Bit_Vec_get_bit(bv, i));
+        Bit_Stream_add_bit(bs, BIT_VEC_GET_BIT(bv, i));
     }
 }
 
@@ -222,7 +221,7 @@ uint8_t Bit_Stream_get_bit(Bit_Stream *bs)
         }
 
         bs->cur_pos++;
-        return Bit_Vec_get_bit(bs->bits_buf, bs->cur_pos-1);
+        return BIT_VEC_GET_BIT(bs->bits_buf, bs->cur_pos-1);
     }
 }
 

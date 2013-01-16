@@ -1,5 +1,7 @@
 #include "deflate.h"
 
+#define DEBUG
+
 /**
  * Decode the current queue and writes it out on the file related to f_out.
  * It assumes that f_out is a valid file descriptor referred to a file opened in
@@ -8,7 +10,10 @@
 void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 {
     size_t buf_size = 0;
-    uint8_t buf[INPUT_BLOCK_SIZE];
+    uint8_t *buf = (uint8_t*)malloc(sizeof(uint8_t)*INPUT_BLOCK_SIZE);
+    if (buf == NULL) {
+        die_error("[ERROR-LZ_decode_process_queue] malloc failed!\n");
+    }
 
     LZ_Element *next_el = NULL;
     while (!LZQ_IS_EMPTY(queue)) {
@@ -18,22 +23,35 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
             buf[buf_size++] = LZE_GET_LITERAL(next_el);
         }
         else {
+#ifdef DEBUG
             if (LZE_GET_DISTANCE(next_el) > buf_size) {
-                printf("%d (FAIL)\n", LZE_GET_DISTANCE(next_el));
+                printf("D: %d (FAIL)\n", LZE_GET_DISTANCE(next_el));
                 getchar();
             }
-
+#endif
             size_t init_pos = buf_size - LZE_GET_DISTANCE(next_el);
+
+#ifdef DEBUG
+            if (LZE_GET_LENGTH(next_el) + init_pos >= INPUT_BLOCK_SIZE) {
+                printf("L: %d (FAIL)\n", LZE_GET_DISTANCE(next_el));
+                getchar();
+            }
+#endif
+
             for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
                 buf[buf_size++] = buf[init_pos + i];
             }
         }
 
+        // realese the processed element
         free(next_el);
     }
 
     // writes the decoded buffer on the file
     WRITE_BYTES(f_out, buf, buf_size);
+
+    // realese the memory
+    free(buf);
 }
 
 /**
@@ -62,18 +80,27 @@ void Deflate_process_queue(LZ_Queue *queue, Statistics *stats, Bit_Stream *bs_ou
 
         if (LZE_IS_LITERAL(next_el)) {
             Huffman_get_literal_code(LZE_GET_LITERAL(next_el), tmp_code);
-            Bit_Stream_add_n_bit(bs_out, tmp_code);
+            for (int i = 0; i < BIT_VEC_SIZE(tmp_code); i++) {
+                Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(tmp_code,i));
+            }
+            //Bit_Stream_add_n_bit(bs_out, tmp_code);
         }
         else {
             Huffman_get_length_code(LZE_GET_LENGTH(next_el), tmp_code);
-            Bit_Stream_add_n_bit(bs_out, tmp_code);
+            for (int i = 0; i < BIT_VEC_SIZE(tmp_code); i++) {
+                Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(tmp_code,i));
+            }
+            //Bit_Stream_add_n_bit(bs_out, tmp_code);
 
             Bit_Vec_destroy(tmp_code);
             free(tmp_code);
 
             tmp_code = Bit_Vec_create();
             Huffman_get_distance_code(LZE_GET_DISTANCE(next_el), tmp_code);
-            Bit_Stream_add_n_bit(bs_out, tmp_code);
+            for (int i = 0; i < BIT_VEC_SIZE(tmp_code); i++) {
+                Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(tmp_code,i));
+            }
+            //Bit_Stream_add_n_bit(bs_out, tmp_code);
         }
 
         Bit_Vec_destroy(tmp_code);
@@ -133,77 +160,80 @@ void Deflate_decode(Deflate_Params *params)
 
         // processes the block util it finds he block separator sequence
         // BLOCK SEPARATOR = 0000000
-        block_finished = false;
-        while (!block_finished) {
-            uint16_t cur_code = 0x00;
-            for (int i = 0; i < 7; i++) {
-                cur_code <<= 1;
-                if (Bit_Stream_get_bit(&in_s)) {
-                    cur_code |= 0x0001;
-                }
-            }
 
-            uint8_t n_extra_bits = 0x00;
-            if      (cur_code <= 23) n_extra_bits = 0;
-            else if (cur_code <= 95) n_extra_bits = 1;
-            else if (cur_code <= 99) n_extra_bits = 1;
-            else                     n_extra_bits = 2;
-
-            for (int i = 0; i < n_extra_bits; i++) {
-                cur_code <<= 1;
-                if (Bit_Stream_get_bit(&in_s)) {
-                    cur_code |= 0x0001;
-                }
-            }
-
-            uint16_t edoc = 0x0000;
-            if      (cur_code <= 23)  edoc = cur_code + 256;
-            else if (cur_code <= 191) edoc = cur_code - 48;
-            else if (cur_code <= 199) edoc = cur_code - 192 + 280;
-            else                      edoc = cur_code - 400 + 144;
-
-            if (edoc == 256) {
-                block_finished = true;
-            }
-            else if (edoc <= 255) {
-                LZQ_ENQUEUE_LITERAL(lz_queue, edoc);
-            }
-            else {
-                // length extra bits
-                uint8_t l_extra_bits = 0x00;
-                uint8_t len_pos = edoc - 257;
-                for (int i = 0; i < lext[len_pos]; i++) {
-                    l_extra_bits <<= 1;
+        // static huffman decoding
+        if (block_type == STATIC_HUFFMAN_TYPE) {
+            block_finished = false;
+            while (!block_finished) {
+                uint16_t cur_code = 0x0000;
+                for (int i = 0; i < 7; i++) {
+                    cur_code <<= 1;
                     if (Bit_Stream_get_bit(&in_s)) {
-                        l_extra_bits |= 0x01;
+                        cur_code |= 0x0001;
                     }
                 }
 
-                // distance position in the code table
-                uint8_t d_pos = 0x00;
-                for (int i = 0; i < 5; i++) {
-                    d_pos <<= 1;
+                uint8_t n_extra_bits = 0x00;
+                if      (cur_code <= 23) n_extra_bits = 0;
+                else if (cur_code <= 95) n_extra_bits = 1;
+                else if (cur_code <= 99) n_extra_bits = 1;
+                else                     n_extra_bits = 2;
+
+                for (int i = 0; i < n_extra_bits; i++) {
+                    cur_code <<= 1;
                     if (Bit_Stream_get_bit(&in_s)) {
-                        d_pos |= 0x01;
+                        cur_code |= 0x0001;
                     }
                 }
 
-                // distance extra bits
-                uint16_t d_extra_bits = 0x00;
-                for (int i = 0; i < dext[d_pos]; i++) {
-                    d_extra_bits <<= 1;
-                    if (Bit_Stream_get_bit(&in_s)) {
-                        d_extra_bits |= 0x0001;
-                    }
-                }
+                int edoc = 0;
+                if      (cur_code <= 23)  edoc = cur_code + 256;
+                else if (cur_code <= 191) edoc = cur_code - 48;
+                else if (cur_code <= 199) edoc = cur_code + 88;  //- 192 + 280;
+                else                      edoc = cur_code - 256; //- 400 + 144;
 
-                LZQ_ENQUEUE_PAIR(lz_queue,dists[d_pos]  + d_extra_bits,
-                                          lens[len_pos] + l_extra_bits);
+                if (edoc == 256) {
+                    block_finished = true;
+                }
+                else if (edoc <= 255) {
+                    LZQ_ENQUEUE_LITERAL(&lz_queue, edoc);
+                }
+                else {
+                    // length extra bits
+                    uint8_t  l_extra_bits = 0x00;
+                    uint16_t len_pos = edoc - 257;
+                    for (int i = 0; i < lext[len_pos]; i++) {
+                        l_extra_bits <<= 1;
+                        if (Bit_Stream_get_bit(&in_s)) {
+                            l_extra_bits |= 0x01;
+                        }
+                    }
+
+                    // distance position in the code table
+                    uint8_t d_pos = 0x00;
+                    for (int i = 0; i < 5; i++) {
+                        d_pos <<= 1;
+                        if (Bit_Stream_get_bit(&in_s)) {
+                            d_pos |= 0x01;
+                        }
+                    }
+
+                    // distance extra bits
+                    uint16_t d_extra_bits = 0x0000;
+                    for (int i = 0; i < dext[d_pos]; i++) {
+                        d_extra_bits <<= 1;
+                        if (Bit_Stream_get_bit(&in_s)) {
+                            d_extra_bits |= 0x0001;
+                        }
+                    }
+
+                    LZQ_ENQUEUE_PAIR(&lz_queue, dists[d_pos]  + d_extra_bits,
+                                                lens[len_pos] + l_extra_bits);
+                }
             }
         }
 
         LZ_decode_process_queue(&lz_queue, f_out);
-        LZ_Queue_destroy(&lz_queue);
     }
 
     fclose(f_out);
@@ -228,6 +258,7 @@ void Deflate_encode(Deflate_Params *params)
     // output bits stream
     Bit_Stream out_s;
     Bit_Stream_init(&out_s, params->out_file_name, "wb", 4096);
+    //FILE *out_f = fopen(params->out_file_name, "wb");
 
     // current input data block
     uint8_t *cur_block = (uint8_t*)malloc(INPUT_BLOCK_SIZE*sizeof(uint8_t));
@@ -272,7 +303,7 @@ void Deflate_encode(Deflate_Params *params)
                 // we are at the end of the block, so we put the last literals
                 // in the queue
                 for (size_t j = 0; j < i; j++) {
-                    LZQ_ENQUEUE_LITERAL(lz_queue,next3B[j]);
+                    LZQ_ENQUEUE_LITERAL(&lz_queue,next3B[j]);
                 }
 
                 break;
@@ -286,7 +317,7 @@ void Deflate_encode(Deflate_Params *params)
                     HTABLE_PUT(lookup_table, next3B, lab_start);
 
                     // outputs the current byte
-                    LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
+                    LZQ_ENQUEUE_LITERAL(&lz_queue,next3B[0]);
 
                     // advances of one position
                     lab_start++;
@@ -322,7 +353,7 @@ void Deflate_encode(Deflate_Params *params)
 
                     if (longest_match_length < LZ_MIN_SEQ_LEN) {
                         // output the current byte and advances of one position
-                        LZQ_ENQUEUE_LITERAL(lz_queue,next3B[0]);
+                        LZQ_ENQUEUE_LITERAL(&lz_queue,next3B[0]);
 
                         if (params->fast == false) {
                             // updates the lookup table with the current three bytes
@@ -333,8 +364,8 @@ void Deflate_encode(Deflate_Params *params)
                         lab_start++;
                     }
                     else {
-                        LZQ_ENQUEUE_PAIR(lz_queue, lab_start - longest_match_pos,
-                                                   longest_match_length);
+                        LZQ_ENQUEUE_PAIR(&lz_queue, lab_start - longest_match_pos,
+                                                    longest_match_length);
 
                         if (params->fast == false) {
                             // updates the lookup table with the bytes between the
@@ -361,6 +392,7 @@ void Deflate_encode(Deflate_Params *params)
 
         // processes the current queue
         Deflate_process_queue(&lz_queue, NULL, &out_s, last_block);
+        //LZ_decode_process_queue(&lz_queue, out_f);
         Hash_Table_reset(lookup_table);
     }
 

@@ -27,6 +27,8 @@
 #define LZ_MIN_SEQ_LEN 3
 #define LZ_MAX_SEQ_LEN 258
 
+#define STATIC_HUFFMAN_TYPE 1
+
 /*** AUXILIARIES DATA STRUCTURES ***/
 
 // represents the structure used for storing data informations
