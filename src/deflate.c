@@ -3,19 +3,14 @@
 #define DEBUG
 
 /**
- * Decode the current queue and writes it out on the file related to f_out.
+ * Decodes the current queue and writes it out on the file related to f_out.
  * It assumes that f_out is a valid file descriptor referred to a file opened in
  * binary writing mode.
  */
 void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 {
     size_t buf_size = 0;
-
-    // allocates a temporary buffer
-    uint8_t *buf = (uint8_t*)malloc(sizeof(uint8_t)*INPUT_BLOCK_SIZE);
-    if (buf == NULL) {
-        die_error("[ERROR-LZ_decode_process_queue] malloc failed!\n");
-    }
+    static uint8_t buf[INPUT_BLOCK_SIZE];
 
     // processes the queue
     LZ_Element *next_el = NULL;
@@ -53,9 +48,6 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
 
     // writes the decoded buffer on the file
     WRITE_BYTES(f_out, buf, buf_size);
-
-    // realese the memory
-    free(buf);
 }
 
 /**
@@ -147,9 +139,10 @@ void Deflate_decode(Deflate_Params *params)
     // continues until the last block in the file is processed
     while (!last_block_processed) {
 
+
         // reads the first bit of the block which states
         // if we have to process the last block in the file or not
-        last_block_processed = Bit_Stream_get_bit(&in_s);
+        last_block_processed = Bit_Stream_get_bit(&in_s) == 1;
 
         // reads the block type
         block_type = 0x00;

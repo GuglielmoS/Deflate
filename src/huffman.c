@@ -32,10 +32,6 @@ void Huffman_get_length_code(uint16_t length, Bit_Vec *bv)
     while (lens[i] < length && i < 29) i++; // FIND LENGTH POS
     if (lens[i] != length) i--;
 
-    if (i < 0 || i > 28) {
-        printf("QUALCOSA NON VA: i = %d\n", i);
-    }
-
     Bit_Vec_add_n_ls_bits_from_word(bv, get_prefix_code(257 + i), get_edoc_length(257 + i));
     Bit_Vec_add_n_ls_bits_from_word(bv, length - lens[i], lext[i]);
 }
@@ -43,12 +39,8 @@ void Huffman_get_length_code(uint16_t length, Bit_Vec *bv)
 void Huffman_get_distance_code(uint16_t distance, Bit_Vec *bv)
 {
     int i = 0;
-    while (dists[i] < distance && i < 29) i++; // FIND DISTANCE POS
+    while (dists[i] < distance && i < 30) i++; // FIND DISTANCE POS
     if (dists[i] != distance) i--;
-
-    if (i < 0 || i > 29) {
-        printf("QUALCOSA NON VA: d = %d, i = %d\n", distance, i);
-    }
 
     Bit_Vec_add_n_ls_bits_from_word(bv, i, 5);
     Bit_Vec_add_n_ls_bits_from_word(bv, distance - dists[i], dext[i]);

@@ -24,10 +24,6 @@ static const uint8_t dext[30] = {
     0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
     7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13};
 
-// edocs init values
-//static const uint16_t edoc_init_values[4] = {
-//    0x0030,0x0190,0x0000,0x00C0};
-
 static const uint16_t edoc_init_values[4] = {
     48,400,0,192};
 
