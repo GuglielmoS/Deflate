@@ -50,15 +50,6 @@ typedef struct {
 // reads the next block from the file identified by 'fd'
 #define READ_BLOCK(block,fd) fread((uint8_t*)(block), sizeof(uint8_t), INPUT_BLOCK_SIZE, (fd))
 
-// increments the literal count of a statistics data structure
-#define STATS_INC_LIT(s) (s).lit_count++
-
-// increments the pair count of a statistics data structure
-#define STATS_INC_PAIR(s) (s).pair_count++
-
-// increments the symbol frequency of a statistics data structure
-#define STATS_INC_FREQ(s,sym) (s).freqs[(sym)]++
-
 /*** FUNCTIONS ***/
 void Deflate_encode(Deflate_Params *params);
 void Deflate_decode(Deflate_Params *params);

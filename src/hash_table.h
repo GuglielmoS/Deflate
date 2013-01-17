@@ -31,12 +31,6 @@ typedef Limited_List* Hash_Table;
 
 /** Helpers **/
 void Hash_Table_init(Hash_Table ht);
-
-/** Hash_Table accessors **/
-void Hash_Table_put(Hash_Table ht, Hash_Key key, Hash_Value value);
-List Hash_Table_get(Hash_Table ht, Hash_Key key);
-
-/** Hash_Table destructors **/
 void Hash_Table_reset(Hash_Table ht);
 
 #endif /* __HASH_TABLE__ */

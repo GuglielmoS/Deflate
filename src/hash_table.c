@@ -1,7 +1,7 @@
 #include "hash_table.h"
 
 /**
- * Set to zero the Hash_Table content.
+ * Sets to zero the Hash_Table content
  */
 void Hash_Table_init(Hash_Table ht)
 {
@@ -12,7 +12,7 @@ void Hash_Table_init(Hash_Table ht)
 }
 
 /**
- * Deletes all the Hash_Table content.
+ * Deletes all the Hash_Table elements
  */
 void Hash_Table_reset(Hash_Table ht)
 {
