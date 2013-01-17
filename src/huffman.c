@@ -2,7 +2,7 @@
 
 uint16_t get_prefix_code(uint16_t edoc)
 {
-    if      (edoc <= 143) return edoc_init_values[0] + edoc;
+    if      (edoc <= 143) return edoc_init_values[0] +  edoc;
     else if (edoc <= 255) return edoc_init_values[1] + (edoc - 144);
     else if (edoc <= 279) return edoc_init_values[2] + (edoc - 256);
     else                  return edoc_init_values[3] + (edoc - 280);
@@ -28,9 +28,13 @@ void Huffman_get_literal_code(uint8_t literal, Bit_Vec *bv)
 
 void Huffman_get_length_code(uint16_t length, Bit_Vec *bv)
 {
-    size_t i = 0;
-    while (lens[i] < length) i++; // FIND LENGTH POS
+    int i = 0;
+    while (lens[i] < length && i < 29) i++; // FIND LENGTH POS
     if (lens[i] != length) i--;
+
+    if (i < 0 || i > 28) {
+        printf("QUALCOSA NON VA: i = %d\n", i);
+    }
 
     Bit_Vec_add_n_ls_bits_from_word(bv, get_prefix_code(257 + i), get_edoc_length(257 + i));
     Bit_Vec_add_n_ls_bits_from_word(bv, length - lens[i], lext[i]);
@@ -38,9 +42,13 @@ void Huffman_get_length_code(uint16_t length, Bit_Vec *bv)
 
 void Huffman_get_distance_code(uint16_t distance, Bit_Vec *bv)
 {
-    uint32_t i = 0;
-    while (dists[i] < distance) i++; // FIND DISTANCE POS
+    int i = 0;
+    while (dists[i] < distance && i < 29) i++; // FIND DISTANCE POS
     if (dists[i] != distance) i--;
+
+    if (i < 0 || i > 29) {
+        printf("QUALCOSA NON VA: d = %d, i = %d\n", distance, i);
+    }
 
     Bit_Vec_add_n_ls_bits_from_word(bv, i, 5);
     Bit_Vec_add_n_ls_bits_from_word(bv, distance - dists[i], dext[i]);
