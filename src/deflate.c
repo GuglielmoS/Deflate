@@ -1,7 +1,5 @@
 #include "deflate.h"
 
-#define DEBUG
-
 /**
  * Decodes the current queue and writes it out on the file related to f_out.
  * It assumes that f_out is a valid file descriptor referred to a file opened in
@@ -21,22 +19,7 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
             buf[buf_size++] = LZE_GET_LITERAL(next_el);
         }
         else {
-#ifdef DEBUG
-            if (LZE_GET_DISTANCE(next_el) > buf_size) {
-                printf("D: %d (FAIL)\n", LZE_GET_DISTANCE(next_el));
-                getchar();
-            }
-#endif
-
             size_t init_pos  = buf_size - LZE_GET_DISTANCE(next_el);
-
-#ifdef DEBUG
-            if (LZE_GET_LENGTH(next_el) + init_pos >= INPUT_BLOCK_SIZE) {
-                printf("L: %d (FAIL)\n", LZE_GET_DISTANCE(next_el));
-                getchar();
-            }
-#endif
-
             for (size_t i = 0; i < LZE_GET_LENGTH(next_el); i++) {
                 buf[buf_size++] = buf[init_pos + i];
             }
@@ -65,10 +48,10 @@ void Deflate_process_queue(LZ_Queue *queue, Bit_Stream *bs_out, bool last_block)
     Bit_Stream_add_bit(bs_out, 0); // STATIC
     Bit_Stream_add_bit(bs_out, 1); // HUFFMAN
 
-    /*** processes the queue of LZ elements ***/
     Bit_Vec *tmp_code = NULL;
     LZ_Element *next_el = NULL;
 
+    // processes the queue of LZ elements
     while (!LZQ_IS_EMPTY(queue)) {
         next_el = LZQ_DEQUEUE(queue);
         tmp_code = Bit_Vec_create();
@@ -139,7 +122,6 @@ void Deflate_decode(Deflate_Params *params)
     // continues until the last block in the file is processed
     while (!last_block_processed) {
 
-
         // reads the first bit of the block which states
         // if we have to process the last block in the file or not
         last_block_processed = Bit_Stream_get_bit(&in_s) == 1;
@@ -158,6 +140,9 @@ void Deflate_decode(Deflate_Params *params)
         if (block_type == STATIC_HUFFMAN_TYPE) {
             block_finished = false;
             while (!block_finished) {
+                // gets the first seven bits to determine what kind of
+                // symbol we have to process, and thus how many extra bits
+                // we need to read
                 uint16_t cur_code = 0x0000;
                 for (int i = 0; i < 7; i++) {
                     cur_code <<= 1;
@@ -172,6 +157,8 @@ void Deflate_decode(Deflate_Params *params)
                 else if (cur_code <= 99) n_extra_bits = 1;
                 else                     n_extra_bits = 2;
 
+                // reads the 'extra' bits of the current symbol based on
+                // the value read just over here
                 for (int i = 0; i < n_extra_bits; i++) {
                     cur_code <<= 1;
                     if (Bit_Stream_get_bit(&in_s)) {
@@ -179,13 +166,19 @@ void Deflate_decode(Deflate_Params *params)
                     }
                 }
 
+                // normalizes the result symbol value's by calcuting the
+                // relative 'edoc'
                 int edoc = 0;
                 if      (cur_code <= 23)  edoc = cur_code + 256;
                 else if (cur_code <= 191) edoc = cur_code - 48;
                 else if (cur_code <= 199) edoc = cur_code + 88;  // - 192 + 280;
                 else                      edoc = cur_code - 256; // - 400 + 144;
 
+                // now that we know the 'edoc', we can certainly determine which
+                // operations are needed for completing the decompression of
+                // the current symbol
                 if (edoc == 256) {
+                    // BLOCK SEPARATOR => 000 0000
                     block_finished = true;
                 }
                 else if (edoc <= 255) {
@@ -220,24 +213,27 @@ void Deflate_decode(Deflate_Params *params)
                         }
                     }
 
-                    LZQ_ENQUEUE_PAIR(&lz_queue, dists[d_pos]  + d_extra_bits,
-                                                lens[l_pos]   + l_extra_bits);
+                    // enqueues the resultant LZ_Pair
+                    LZQ_ENQUEUE_PAIR(&lz_queue, dists[d_pos] + d_extra_bits,
+                                                lens[l_pos]  + l_extra_bits);
                 }
             }
         }
 
+        // decodes the current queue to the output file
         LZ_decode_process_queue(&lz_queue, f_out);
     }
 
+    // closes the files stream
     fclose(f_out);
     Bit_Stream_close(&in_s);
     Bit_Stream_destroy(&in_s);
 }
 
 /**
- * Compresses the content of the file identified by 'in_file_name' by applying
+ * Compresses the content of the file identified by 'params->in_file_name' by applying
  * the deflate algorithm defined in the RFC1951.
- * The output will be written to the file 'out_file_name'.
+ * The output will be written to the file 'params->out_file_name'.
  */
 void Deflate_encode(Deflate_Params *params)
 {
@@ -268,13 +264,16 @@ void Deflate_encode(Deflate_Params *params)
         die_error("[ERROR-Deflate_encode] malloc failed!\n");
     }
 
-    LZ_Queue lz_queue; // queue used for processing the LZ77 output
+    // queue used for processing the LZ77 output
+    LZ_Queue lz_queue;
 
-    uint8_t next3B[3]; // next 3 bytes in the input file
+    // next 3 bytes in the input file
+    uint8_t next3B[3];
 
-    bool last_block = false; // states if we are at the last block
+    // states if we are processing the last block
+    bool last_block = false;
 
-    // initialize the lookup table and the lz_queue
+    // initializes the lookup table and the lz_queue
     LZ_Queue_init(&lz_queue);
     Hash_Table_init(lookup_table);
 
@@ -283,6 +282,7 @@ void Deflate_encode(Deflate_Params *params)
         if (block_size < INPUT_BLOCK_SIZE)
             last_block = true;
 
+        // starts the search in the buffer
         lab_start = 0;
         while (lab_start < block_size) {
             size_t i = 0;
@@ -301,6 +301,7 @@ void Deflate_encode(Deflate_Params *params)
                 break;
             }
             else {
+                // retrieves the positions of the current sequence (next3B)
                 List chain = HTABLE_GET(lookup_table, next3B);
 
                 if (chain == NULL) {
@@ -311,7 +312,7 @@ void Deflate_encode(Deflate_Params *params)
                     // outputs the current byte
                     LZQ_ENQUEUE_LITERAL(&lz_queue, next3B[0]);
 
-                    // advances of one position
+                    // advances of one position in the buffer
                     lab_start++;
                 }
                 else {
@@ -353,7 +354,7 @@ void Deflate_encode(Deflate_Params *params)
                             HTABLE_PUT(lookup_table, next3B, lab_start);
                         }
 
-                        // advances of one position
+                        // advances of one position in the buffer
                         lab_start++;
                     }
                     else {
