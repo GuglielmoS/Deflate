@@ -56,28 +56,28 @@ void Deflate_process_queue(LZ_Queue *queue, Bit_Stream *bs_out, bool last_block)
         next_el = LZQ_DEQUEUE(queue);
         tmp_code = Bit_Vec_create();
 
+        // outputs the literal code
         if (LZE_IS_LITERAL(next_el)) {
-            Huffman_get_literal_code(LZE_GET_LITERAL(next_el), tmp_code);
-            for (int i = 0; i < BIT_VEC_SIZE(tmp_code); i++) {
-                Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(tmp_code,i));
-            }
+            HUFFMAN_GET_LITERAL_CODE(LZE_GET_LITERAL(next_el), tmp_code);
+            BIT_STREAM_ADD_BIT_VEC(bs_out, tmp_code);
         }
+        // outputs the distance/length pair code
         else {
+            // gets the length code
             Huffman_get_length_code(LZE_GET_LENGTH(next_el), tmp_code);
-            for (int i = 0; i < BIT_VEC_SIZE(tmp_code); i++) {
-                Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(tmp_code,i));
-            }
+            BIT_STREAM_ADD_BIT_VEC(bs_out, tmp_code);
 
+            // resets the temporary bits vector
             Bit_Vec_destroy(tmp_code);
             free(tmp_code);
-
             tmp_code = Bit_Vec_create();
+
+            // gets the distance code
             Huffman_get_distance_code(LZE_GET_DISTANCE(next_el), tmp_code);
-            for (int i = 0; i < BIT_VEC_SIZE(tmp_code); i++) {
-                Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(tmp_code,i));
-            }
+            BIT_STREAM_ADD_BIT_VEC(bs_out, tmp_code);
         }
 
+        // frees the memory used for the LZ_Element and the temporary Bit_Vec
         Bit_Vec_destroy(tmp_code);
         free(tmp_code);
         free(next_el);
@@ -115,7 +115,11 @@ void Deflate_decode(Deflate_Params *params)
     LZ_Queue lz_queue;
     LZ_Queue_init(&lz_queue);
 
+    // used to identify the current block type
     uint8_t block_type;
+
+    // used to determine when we need to stop the decoding process of
+    // a block, or the whole file
     bool last_block_processed = false,
          block_finished = false;
 
@@ -138,8 +142,10 @@ void Deflate_decode(Deflate_Params *params)
 
         // static huffman decoding
         if (block_type == STATIC_HUFFMAN_TYPE) {
+
             block_finished = false;
             while (!block_finished) {
+
                 // gets the first seven bits to determine what kind of
                 // symbol we have to process, and thus how many extra bits
                 // we need to read
@@ -246,7 +252,7 @@ void Deflate_encode(Deflate_Params *params)
 
     // output bits stream
     Bit_Stream out_s;
-    Bit_Stream_init(&out_s, params->out_file_name, "wb", 4096);
+    Bit_Stream_init(&out_s, params->out_file_name, "wb", INPUT_BLOCK_SIZE);
 
     // current input data block
     uint8_t *cur_block = (uint8_t*)malloc(INPUT_BLOCK_SIZE*sizeof(uint8_t));
@@ -254,12 +260,14 @@ void Deflate_encode(Deflate_Params *params)
         die_error("[ERROR-Deflate_encode] malloc failed!\n");
     }
 
-    size_t block_size = 0, // current block size
-           lab_start = 0;  // look-ahead buffer start position
+    // current block size
+    size_t block_size = 0;
 
-    Hash_Table lookup_table; // lookup table used for searching in the buffer
+    // look-ahead buffer start position
+    size_t lab_start = 0;
 
-    lookup_table = (Limited_List*)malloc(HASH_TABLE_SIZE*sizeof(Limited_List));
+    // lookup table used for searching in the buffer
+    Hash_Table lookup_table = (Limited_List*)malloc(HASH_TABLE_SIZE*sizeof(Limited_List));
     if (lookup_table == NULL) {
         die_error("[ERROR-Deflate_encode] malloc failed!\n");
     }
@@ -285,6 +293,8 @@ void Deflate_encode(Deflate_Params *params)
         // starts the search in the buffer
         lab_start = 0;
         while (lab_start < block_size) {
+
+            // retrieves the next 3 bytes in the buffer
             size_t i = 0;
             while (lab_start + i < block_size && i < 3) {
                 next3B[i] = cur_block[lab_start+i];
@@ -316,11 +326,14 @@ void Deflate_encode(Deflate_Params *params)
                     lab_start++;
                 }
                 else {
+                    // temporary variables used to store the longest match
+                    // sequence position and length.
                     size_t longest_match_length = 0,
                            longest_match_pos = -1;
 
                     // goes through the chain to find the longest match
                     while (chain != NULL) {
+
                         // position of the match in the search buffer
                         size_t match_pos = chain->value;
 
@@ -330,7 +343,7 @@ void Deflate_encode(Deflate_Params *params)
                         // finds the length of the current occurrence
                         while (lab_start + k < block_size     &&
                                            k < LZ_MAX_SEQ_LEN &&
-                               cur_block[match_pos+k] == cur_block[lab_start+k]) {
+                               cur_block[match_pos + k] == cur_block[lab_start + k]) {
                             k++;
                         }
 
@@ -387,14 +400,18 @@ void Deflate_encode(Deflate_Params *params)
 
         // processes the current queue
         Deflate_process_queue(&lz_queue, &out_s, last_block);
+
+        // resets the lookup table
         Hash_Table_reset(lookup_table);
     }
 
+    // frees the memory allocated previously for the lookup table and the data input block
     free(lookup_table);
     free(cur_block);
-    fclose(in_f);
 
+    // closes and destroys the bits stream; thus close the input file
     Bit_Stream_destroy(&out_s);
     Bit_Stream_close(&out_s);
+    fclose(in_f);
 }
 

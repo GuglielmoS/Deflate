@@ -9,33 +9,46 @@
 #include "bit_op.h"
 #include "bit_vec.h"
 
+
 /**
- * Represents a data structure that allows to read and write
- * bit to bit on a valid FILE descriptor.
+ * Represents a data structure which allows to read/write
+ * in a bit-oriented way a valid FILE descriptor.
  */
 typedef struct {
-    FILE *fd;               // file descriptor of the stream
+    // file descriptor of the stream
+    FILE *fd;
 
-    Bit_Vec *bits_buf;      // bits buffer
+    // bits buffer
+    Bit_Vec *bits_buf;
 
-    uint8_t padding_bits;   // number of bits written as padding
-                            // at the end of the last write
+    // number of bits written as padding at the end of the last write call
+    uint8_t padding_bits;
 
-    uint32_t max_buf_size;  // maximum size of the temporary buffer in bytes
-                            // (that is when will be called the read/write function)
+    // maximum size of the temporary buffer in bytes
+    // (that is when will be called the read/write function)
+    uint32_t max_buf_size;
 
-    uint32_t cur_pos;       // current position in the bits buffer (used while reading)
+    // current position in the bits buffer (used while reading)
+    uint32_t cur_pos;
 
-    uint32_t processed_bytes; // number of bytes processed
-    uint32_t file_size;       // size of the file in bytes
+    // number of bytes processed
+    uint32_t processed_bytes;
 
-    bool file_finished; // true if there aren't more data to read
-    bool last_chunk;    // true if the current Bit_Vec is referred to the last file's chunk
+    // size of the file in bytes
+    uint32_t file_size;
 
+    // true if there aren't more data to read
+    bool file_finished;
+
+    // true if the current Bit_Vec is referred to the last file's chunk
+    bool last_chunk;
 } Bit_Stream;
 
+
 /*** USEFUL MACROS ***/
-#define BIT_STREAM_IS_FILE_FINISHED(bs) ((bs)->file_finished == true)
+
+// adds the bits vector 'bv' to the bits stream 'bs'
+#define BIT_STREAM_ADD_BIT_VEC(bs,bv) for (int i=0;i<(bv)->cur_size;i++){Bit_Stream_add_bit(bs_out, BIT_VEC_GET_BIT(bv,i));}
 
 // initialization
 void Bit_Stream_init(Bit_Stream *bs, const char *file_name, const char *mode, size_t max_size);
