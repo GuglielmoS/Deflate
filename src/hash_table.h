@@ -14,7 +14,7 @@
 
 #define HASH_TABLE_SIZE 8192
 
-// maximum size of a list
+// maximum size of a list (hash table element)
 #define HASH_TABLE_MAX_LIST_LEN 20
 
 // hash function
@@ -24,7 +24,6 @@
 #define HTABLE_GET(ht,k)   ht[GET_HASH(k)].first
 #define HTABLE_PUT(ht,k,v) Limited_List_add(&(ht)[GET_HASH(k)], (v))
 
-typedef uint8_t Hash_Value;
 typedef uint8_t Hash_Key[3];
 
 typedef Limited_List* Hash_Table;

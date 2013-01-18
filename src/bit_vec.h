@@ -14,7 +14,7 @@
  * of bits.
  */
 typedef struct {
-    uint8_t *buf;  // bits buffer
+    uint8_t *buf;      // bits buffer
     size_t   cur_size; // current number of bits stored
     size_t   max_size; // maximum number of bits
 } Bit_Vec;
@@ -22,7 +22,7 @@ typedef struct {
 // 1 byte of default buffer size
 #define BIT_VEC_INIT_BUF_SIZE 1
 
-// useful macros
+/*** USEFUL MACROS ***/
 #define BIT_VEC_SIZE(bv)      ((bv)->cur_size)
 #define BIT_VEC_IS_FULL(bv)   ((bv)->cur_size == (bv)->max_size)
 #define BIT_VEC_GET_BIT(bv,p) (BYTE_BIT_GET((bv)->buf[(p)/8],7-(p)%8))

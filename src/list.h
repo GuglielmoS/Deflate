@@ -5,14 +5,17 @@
 
 #include "util.h"
 
+// List value's type
 typedef size_t List_Value;
 
+// represents a single linked list
 typedef struct __list_node {
     List_Value value;
     struct __list_node *next;
 } List_Node;
 typedef List_Node* List;
 
+// represents a List which can grow only at maximum size
 typedef struct {
     List first;         // pointer to the first element in the list
     size_t max_size;    // maximum number of elements

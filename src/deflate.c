@@ -11,9 +11,8 @@ void LZ_decode_process_queue(LZ_Queue *queue, FILE *f_out)
     static uint8_t buf[INPUT_BLOCK_SIZE];
 
     // processes the queue
-    LZ_Element *next_el = NULL;
     while (!LZQ_IS_EMPTY(queue)) {
-        next_el = LZQ_DEQUEUE(queue);
+        LZ_Element *next_el = LZQ_DEQUEUE(queue);
 
         if (LZE_IS_LITERAL(next_el)) {
             buf[buf_size++] = LZE_GET_LITERAL(next_el);
@@ -48,13 +47,13 @@ void Deflate_process_queue(LZ_Queue *queue, Bit_Stream *bs_out, bool last_block)
     Bit_Stream_add_bit(bs_out, 0); // STATIC
     Bit_Stream_add_bit(bs_out, 1); // HUFFMAN
 
-    Bit_Vec *tmp_code = NULL;
-    LZ_Element *next_el = NULL;
+    //Bit_Vec *tmp_code = NULL;
+    //LZ_Element *next_el = NULL;
 
     // processes the queue of LZ elements
     while (!LZQ_IS_EMPTY(queue)) {
-        next_el = LZQ_DEQUEUE(queue);
-        tmp_code = Bit_Vec_create();
+        LZ_Element *next_el = LZQ_DEQUEUE(queue);
+        Bit_Vec *tmp_code = Bit_Vec_create();
 
         // outputs the literal code
         if (LZE_IS_LITERAL(next_el)) {
@@ -115,13 +114,8 @@ void Deflate_decode(Deflate_Params *params)
     LZ_Queue lz_queue;
     LZ_Queue_init(&lz_queue);
 
-    // used to identify the current block type
-    uint8_t block_type;
-
-    // used to determine when we need to stop the decoding process of
-    // a block, or the whole file
-    bool last_block_processed = false,
-         block_finished = false;
+    // used to determine when we need to stop the decoding process
+    bool last_block_processed = false;
 
     // continues until the last block in the file is processed
     while (!last_block_processed) {
@@ -131,7 +125,7 @@ void Deflate_decode(Deflate_Params *params)
         last_block_processed = Bit_Stream_get_bit(&in_s) == 1;
 
         // reads the block type
-        block_type = 0x00;
+        uint8_t block_type = 0x00;
         if (Bit_Stream_get_bit(&in_s))
             block_type |= 0x02;
         if (Bit_Stream_get_bit(&in_s))
@@ -143,7 +137,7 @@ void Deflate_decode(Deflate_Params *params)
         // static huffman decoding
         if (block_type == STATIC_HUFFMAN_TYPE) {
 
-            block_finished = false;
+            bool block_finished = false;
             while (!block_finished) {
 
                 // gets the first seven bits to determine what kind of
@@ -260,12 +254,6 @@ void Deflate_encode(Deflate_Params *params)
         die_error("[ERROR-Deflate_encode] malloc failed!\n");
     }
 
-    // current block size
-    size_t block_size = 0;
-
-    // look-ahead buffer start position
-    size_t lab_start = 0;
-
     // lookup table used for searching in the buffer
     Hash_Table lookup_table = (Limited_List*)malloc(HASH_TABLE_SIZE*sizeof(Limited_List));
     if (lookup_table == NULL) {
@@ -286,12 +274,15 @@ void Deflate_encode(Deflate_Params *params)
     Hash_Table_init(lookup_table);
 
     // processes the blocks
+    size_t block_size = 0;
     while ((block_size = READ_BLOCK(cur_block,in_f)) > 0) {
         if (block_size < INPUT_BLOCK_SIZE)
             last_block = true;
 
+        // look-ahead buffer start position
+        size_t lab_start = 0;
+
         // starts the search in the buffer
-        lab_start = 0;
         while (lab_start < block_size) {
 
             // retrieves the next 3 bytes in the buffer

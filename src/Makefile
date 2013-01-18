@@ -1,6 +1,6 @@
 STD=c99
 OPT_LEVEL=3
-CC=gcc -Wall -std=$(STD) -O$(OPT_LEVEL)
+CC=gcc -Wall -std=$(STD) -O$(OPT_LEVEL) -pedantic
 
 deflate: main.c deflate.o lz_element.o lz_queue.o hash_table.o util.o list.o bit_stream.o bit_vec.o huffman.o
 	$(CC) -o deflate $^

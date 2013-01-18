@@ -31,8 +31,10 @@ void Bit_Stream_init(Bit_Stream *bs, const char *file_name, const char *mode, si
 /**
  * Reads the number of padding bits at the end of the file and stores it
  * in the Bit_Stream data structure; it stores the file size too.
- * INFO: the number of padding bits is stored as the last byte.
- * Thus the byte before the latter will eventually contains the last bits 
+ *
+ * INFO:
+ * the number of padding bits is stored as the last byte.
+ * Thus the byte before the latter will  contains the last bits
  * plus the padding bits.
  */
 void Bit_Stream_read_n_padding_bits(Bit_Stream *bs)
@@ -111,6 +113,7 @@ void Bit_Stream_force_write(Bit_Stream *bs)
              n_bytes = bs->bits_buf->cur_size / 8,
              diff    = n_bytes * 8 - n_bits;
 
+    // writes all the bytes but the last
     fwrite((uint8_t*)(bs->bits_buf->buf), sizeof(uint8_t), n_bytes, bs->fd);
 
     // if it isn't the right number of byte
@@ -123,6 +126,7 @@ void Bit_Stream_force_write(Bit_Stream *bs)
         }
         bs->padding_bits = 8 - diff;
 
+        // writes the last byte
         fwrite((uint8_t*)&last_byte, sizeof(uint8_t), 1, bs->fd);
     }
 
@@ -130,7 +134,7 @@ void Bit_Stream_force_write(Bit_Stream *bs)
 }
 
 /**
- * Resets the bits buffer.
+ * Resets the bits buffer by allocating another one.
  */
 void Bit_Stream_buffer_reset(Bit_Stream *bs)
 {
