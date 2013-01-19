@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "util.h"
-#include "list.h"
+#include "limited_list.h"
 #include "bit_vec.h"
 #include "bit_stream.h"
 #include "lz_queue.h"
@@ -26,6 +26,9 @@
 // min and max sequence length for the LZ77 algorithm
 #define LZ_MIN_SEQ_LEN 3
 #define LZ_MAX_SEQ_LEN 258
+
+// maximum number of position stored in the hash table during the LZ77 procedure
+#define HASH_TABLE_MAX_LIST_LEN 20
 
 // value of STATIC HUFFMAN BLOCK'S 2-BIT HEADER
 #define STATIC_HUFFMAN_TYPE 1

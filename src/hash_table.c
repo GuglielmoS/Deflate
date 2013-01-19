@@ -3,11 +3,12 @@
 /**
  * Sets to zero the Hash_Table content.
  */
-void Hash_Table_init(Hash_Table ht)
+void Hash_Table_init(Hash_Table ht, size_t max_list_size)
 {
     // setting all pointers to NULL
     for (size_t i = 0; i < HASH_TABLE_SIZE; i++) {
-        Limited_List_init(&ht[i], HASH_TABLE_MAX_LIST_LEN);
+        ht[i].values = NULL;
+        ht[i].max_size = max_list_size;
     }
 }
 
@@ -17,8 +18,6 @@ void Hash_Table_init(Hash_Table ht)
 void Hash_Table_reset(Hash_Table ht)
 {
     for (size_t i = 0; i < HASH_TABLE_SIZE; i++) {
-        if (ht[i].cur_size > 0) {
-            Limited_List_destroy(&ht[i]);
-        }
+        Limited_List_destroy(&ht[i]);
     }
 }

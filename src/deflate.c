@@ -271,7 +271,7 @@ void Deflate_encode(Deflate_Params *params)
 
     // initializes the lookup table and the lz_queue
     LZ_Queue_init(&lz_queue);
-    Hash_Table_init(lookup_table);
+    Hash_Table_init(lookup_table, HASH_TABLE_MAX_LIST_LEN);
 
     // processes the blocks
     size_t block_size = 0;
@@ -303,9 +303,9 @@ void Deflate_encode(Deflate_Params *params)
             }
             else {
                 // retrieves the positions of the current sequence (next3B)
-                List chain = HTABLE_GET(lookup_table, next3B);
+                Limited_List *chain = HTABLE_GET(lookup_table, next3B);
 
-                if (chain == NULL) {
+                if (chain->values == NULL) {
                     // the chain is empty, so we put the current three bytes
                     // and their position in it
                     HTABLE_PUT(lookup_table, next3B, lab_start);
@@ -323,10 +323,9 @@ void Deflate_encode(Deflate_Params *params)
                            longest_match_pos = -1;
 
                     // goes through the chain to find the longest match
-                    while (chain != NULL) {
-
+                    for (size_t i = 0; i < chain->cur_size; i++) {
                         // position of the match in the search buffer
-                        size_t match_pos = chain->value;
+                        size_t match_pos = LIMITED_LIST_GET(chain, i);
 
                         // length of the current occurrence
                         size_t k = 0;
@@ -343,9 +342,6 @@ void Deflate_encode(Deflate_Params *params)
                             longest_match_pos    = match_pos;
                             longest_match_length = k;
                         }
-
-                        // proceeds with the next match
-                        chain = chain->next;
                     }
 
                     // if the sequence isn't long enough
