@@ -286,14 +286,20 @@ bool Bit_Stream_finished(Bit_Stream *bs)
            (bs->cur_pos == bs->bits_buf->cur_size && bs->last_chunk);
 }
 
+/**
+ * Realeses the memory previously allocated for the bits buffer, thus
+ * close the file stream.
+ */
 void Bit_Stream_destroy(Bit_Stream *bs)
 {
     if (bs->fd) {
         fclose(bs->fd);
+        bs->fd = NULL;
     }
 
     if (bs->bits_buf) {
         Bit_Vec_destroy(bs->bits_buf);
         free(bs->bits_buf);
+        bs->bits_buf = NULL;
     }
 }

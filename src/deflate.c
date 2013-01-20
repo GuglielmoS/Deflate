@@ -47,9 +47,6 @@ void Deflate_process_queue(LZ_Queue *queue, Bit_Stream *bs_out, bool last_block)
     Bit_Stream_add_bit(bs_out, 0); // STATIC
     Bit_Stream_add_bit(bs_out, 1); // HUFFMAN
 
-    //Bit_Vec *tmp_code = NULL;
-    //LZ_Element *next_el = NULL;
-
     // processes the queue of LZ elements
     while (!LZQ_IS_EMPTY(queue)) {
         LZ_Element *next_el = LZQ_DEQUEUE(queue);
@@ -131,13 +128,12 @@ void Deflate_decode(Deflate_Params *params)
         if (Bit_Stream_get_bit(&in_s))
             block_type |= 0x01;
 
-        // processes the block util it finds the block separator sequence
-        // BLOCK SEPARATOR = 0000000
-
         // static huffman decoding
         if (block_type == STATIC_HUFFMAN_TYPE) {
-
             bool block_finished = false;
+
+            // processes the block util it finds the block separator sequence
+            // BLOCK SEPARATOR = 0000000
             while (!block_finished) {
 
                 // gets the first seven bits to determine what kind of
@@ -178,7 +174,6 @@ void Deflate_decode(Deflate_Params *params)
                 // operations are needed for completing the decompression of
                 // the current symbol
                 if (edoc == 256) {
-                    // BLOCK SEPARATOR => 000 0000
                     block_finished = true;
                 }
                 else if (edoc <= 255) {
@@ -226,7 +221,6 @@ void Deflate_decode(Deflate_Params *params)
 
     // closes the files stream
     fclose(f_out);
-    Bit_Stream_close(&in_s);
     Bit_Stream_destroy(&in_s);
 }
 
@@ -398,7 +392,6 @@ void Deflate_encode(Deflate_Params *params)
 
     // closes and destroys the bits stream; thus close the input file
     Bit_Stream_destroy(&out_s);
-    Bit_Stream_close(&out_s);
     fclose(in_f);
 }
 
